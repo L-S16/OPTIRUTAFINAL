@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'admin_dashboard.dart';
 
 class LoginAdminScreen extends StatelessWidget {
   const LoginAdminScreen({super.key});
@@ -46,7 +47,14 @@ class LoginAdminScreen extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminDashboardScreen(),
+                  ),
+                  );
+                },
                 child: const Text('Iniciar Sesión'),
               ),
             ),
