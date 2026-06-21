@@ -1,8 +1,62 @@
 import 'package:flutter/material.dart';
+import '../../services/auth_service.dart';
 import 'admin_dashboard.dart';
 
-class LoginAdminScreen extends StatelessWidget {
+class LoginAdminScreen extends StatefulWidget {
   const LoginAdminScreen({super.key});
+
+  @override
+  State<LoginAdminScreen> createState() => _LoginAdminScreenState();
+}
+
+class _LoginAdminScreenState extends State<LoginAdminScreen> {
+  final TextEditingController correoController =
+      TextEditingController();
+
+  final TextEditingController passwordController =
+      TextEditingController();
+
+  final AuthService authService = AuthService();
+
+  bool cargando = false;
+
+  Future<void> iniciarSesion() async {
+    try {
+      setState(() {
+        cargando = true;
+      });
+
+      await authService.login(
+        correoController.text.trim(),
+        passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AdminDashboardScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Correo o contraseña incorrectos',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          cargando = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,9 +71,11 @@ class LoginAdminScreen extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/logo_optiruta.png',
-               height: 180,
-          ),
+              height: 180,
+            ),
+
             const SizedBox(height: 20),
+
             const Text(
               'Login Super Administrador',
               style: TextStyle(
@@ -27,35 +83,42 @@ class LoginAdminScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 30),
-            const TextField(
-              decoration: InputDecoration(
+
+            TextField(
+              controller: correoController,
+              decoration: const InputDecoration(
                 labelText: 'Correo',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 20),
-            const TextField(
+
+            TextField(
+              controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Contraseña',
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 30),
+
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdminDashboardScreen(),
-                  ),
-                  );
-                },
-                child: const Text('Iniciar Sesión'),
+                onPressed: cargando
+                    ? null
+                    : iniciarSesion,
+                child: cargando
+                    ? const CircularProgressIndicator()
+                    : const Text(
+                        'Iniciar Sesión',
+                      ),
               ),
             ),
           ],
