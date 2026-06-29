@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'admin_dashboard.dart';
 
 class LoginAdminScreen extends StatelessWidget {
   const LoginAdminScreen({super.key});
@@ -16,8 +17,8 @@ class LoginAdminScreen extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/logo_optiruta.png',
-               height: 180,
-          ),
+              height: 180,
+            ),
             const SizedBox(height: 20),
             const Text(
               'Login Super Administrador',
@@ -46,7 +47,14 @@ class LoginAdminScreen extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminDashboardScreen(),
+                    ),
+                  );
+                },
                 child: const Text('Iniciar Sesión'),
               ),
             ),
