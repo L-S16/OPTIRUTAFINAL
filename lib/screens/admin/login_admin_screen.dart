@@ -17,8 +17,8 @@ class LoginAdminScreen extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/logo_optiruta.png',
-               height: 180,
-          ),
+              height: 180,
+            ),
             const SizedBox(height: 20),
             const Text(
               'Login Super Administrador',
@@ -52,7 +52,7 @@ class LoginAdminScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const AdminDashboardScreen(),
-                  ),
+                    ),
                   );
                 },
                 child: const Text('Iniciar Sesión'),
