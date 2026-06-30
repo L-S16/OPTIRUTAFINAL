@@ -10,65 +10,91 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xffF4F7FA),
       appBar: AppBar(
-        title: const Text("OPTIRUTA"),
+        backgroundColor: const Color(0xff0B2A5B),
+        elevation: 0,
         centerTitle: true,
+        title: const Text(
+          "OPTIRUTA",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-            const Icon(
-              Icons.local_shipping,
-              size: 80,
-              color: Colors.blue,
-            ),
-
-            const SizedBox(height: 15),
-
-            const Text(
-              "Sistema Inteligente de Distribución",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+              Image.asset(
+                'assets/images/logo_optiruta.png',
+                height: 200,
               ),
-              textAlign: TextAlign.center,
-            ),
 
-            const SizedBox(height: 40),
+              const SizedBox(height: 10),
 
-            _menuCard(
-              context,
-              icon: Icons.admin_panel_settings,
-              titulo: "Administrador",
-              descripcion: "Gestiona el sistema",
-              pantalla: const LoginAdminScreen(),
-            ),
+              const Text(
+                "Sistema Inteligente de Distribución",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xff0B2A5B),
+                ),
+                textAlign: TextAlign.center,
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 8),
 
-            _menuCard(
-              context,
-              icon: Icons.inventory,
-              titulo: "Bodeguero",
-              descripcion: "Gestiona pedidos",
-              pantalla: const LoginBodegueroScreen(),
-            ),
+              const Text(
+                "Seleccione el módulo al que desea ingresar",
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.black54,
+                ),
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            _menuCard(
-              context,
-              icon: Icons.local_shipping,
-              titulo: "Conductor",
-              descripcion: "Consulta rutas",
-              pantalla: const LoginConductorScreen(),
-            ),
+              _menuCard(
+                context,
+                color: const Color(0xff0B2A5B),
+                icon: Icons.admin_panel_settings,
+                titulo: "Administrador",
+                descripcion: "Gestionar usuarios y rutas",
+                pantalla: const LoginAdminScreen(),
+              ),
 
-          ],
+              const SizedBox(height: 18),
+
+              _menuCard(
+                context,
+                color: Colors.orange,
+                icon: Icons.inventory_2,
+                titulo: "Bodeguero",
+                descripcion: "Gestionar pedidos",
+                pantalla: const LoginBodegueroScreen(),
+              ),
+
+              const SizedBox(height: 18),
+
+              _menuCard(
+                context,
+                color: Colors.green,
+                icon: Icons.local_shipping,
+                titulo: "Conductor",
+                descripcion: "Consultar rutas asignadas",
+                pantalla: const LoginConductorScreen(),
+              ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -76,21 +102,20 @@ class HomeScreen extends StatelessWidget {
 
   Widget _menuCard(
     BuildContext context, {
+    required Color color,
     required IconData icon,
     required String titulo,
     required String descripcion,
     required Widget pantalla,
   }) {
     return Card(
-      elevation: 5,
-      child: ListTile(
-        leading: Icon(icon, size: 40),
-        title: Text(
-          titulo,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(descripcion),
-        trailing: const Icon(Icons.arrow_forward_ios),
+      elevation: 8,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           Navigator.push(
             context,
@@ -99,6 +124,55 @@ class HomeScreen extends StatelessWidget {
             ),
           );
         },
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: color.withOpacity(.15),
+                child: Icon(
+                  icon,
+                  size: 30,
+                  color: color,
+                ),
+              ),
+
+              const SizedBox(width: 18),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    Text(
+                      descripcion,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Icon(
+                Icons.arrow_forward_ios,
+                color: color,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
