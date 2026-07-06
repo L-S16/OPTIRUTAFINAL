@@ -49,8 +49,8 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
       numeroCajas: numeroCajas,
     );
 
-    // Call provider
-    await Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
+    // Call provider (it updates locally immediately and Firestore in the background)
+    Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
 
     setState(() {
       _isLoading = false;

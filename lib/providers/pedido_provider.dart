@@ -12,12 +12,15 @@ class PedidoProvider with ChangeNotifier {
     _pedidos.add(pedido);
     notifyListeners();
 
-    // 2. Intentar guardar en Firestore (seguro contra fallos de inicialización)
-    try {
-      await FirebaseFirestore.instance.collection('pedidos').doc(pedido.id).set(pedido.toMap());
+    // 2. Intentar guardar en Firestore de forma asíncrona sin bloquear la UI
+    FirebaseFirestore.instance
+        .collection('pedidos')
+        .doc(pedido.id)
+        .set(pedido.toMap())
+        .then((_) {
       debugPrint("Pedido guardado exitosamente en Firestore.");
-    } catch (e) {
+    }).catchError((e) {
       debugPrint("Aviso: No se pudo guardar en Firestore ($e). El pedido se conserva en la sesión local.");
-    }
+    });
   }
 }

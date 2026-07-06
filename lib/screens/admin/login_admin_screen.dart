@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'admin_dashboard.dart';
+import '../bodega/login_bodeguero_screen.dart';
 
 class LoginAdminScreen extends StatelessWidget {
   const LoginAdminScreen({super.key});
@@ -56,6 +57,21 @@ class LoginAdminScreen extends StatelessWidget {
                   );
                 },
                 child: const Text('Iniciar Sesión'),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginBodegueroScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                '¿Eres Bodeguero? Iniciar sesión aquí',
+                style: TextStyle(color: Colors.blue),
               ),
             ),
           ],

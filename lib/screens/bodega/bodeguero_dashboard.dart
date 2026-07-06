@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/pedido_provider.dart';
 import 'registrar_pedido.dart';
+import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatelessWidget {
   const BodegueroDashboard({super.key});
@@ -31,6 +33,25 @@ class BodegueroDashboard extends StatelessWidget {
         backgroundColor: Colors.blueAccent[700],
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Salir',
+            onPressed: () async {
+              try {
+                await FirebaseAuth.instance.signOut();
+              } catch (e) {
+                debugPrint("Error signing out: $e");
+              }
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginAdminScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: Consumer<PedidoProvider>(
         builder: (context, provider, child) {
