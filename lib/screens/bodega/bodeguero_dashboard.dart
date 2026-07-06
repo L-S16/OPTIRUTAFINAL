@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/pedido_provider.dart';
 import 'registrar_pedido.dart';
+import 'editar_pedido.dart';
 import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatelessWidget {
@@ -19,6 +20,37 @@ class BodegueroDashboard extends StatelessWidget {
       default:
         return Colors.blue;
     }
+  }
+
+  void _mostrarConfirmacionEliminar(BuildContext context, String id) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Eliminación'),
+          content: const Text('¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Provider.of<PedidoProvider>(context, listen: false).eliminarPedido(id);
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Pedido $id eliminado exitosamente'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              },
+              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -127,9 +159,8 @@ class BodegueroDashboard extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Fila de ID y Estado
+                              // Fila de ID, Estado y Menú de Opciones
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     pedido.id,
@@ -139,6 +170,7 @@ class BodegueroDashboard extends StatelessWidget {
                                       fontSize: 14,
                                     ),
                                   ),
+                                  const Spacer(),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
@@ -156,6 +188,46 @@ class BodegueroDashboard extends StatelessWidget {
                                         fontSize: 11,
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  PopupMenuButton<String>(
+                                    icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onSelected: (value) {
+                                      if (value == 'editar') {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => EditarPedidoScreen(pedido: pedido),
+                                          ),
+                                        );
+                                      } else if (value == 'eliminar') {
+                                        _mostrarConfirmacionEliminar(context, pedido.id);
+                                      }
+                                    },
+                                    itemBuilder: (BuildContext context) => [
+                                      const PopupMenuItem(
+                                        value: 'editar',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit, size: 18, color: Colors.blueAccent),
+                                            SizedBox(width: 8),
+                                            Text('Editar'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'eliminar',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete, size: 18, color: Colors.redAccent),
+                                            SizedBox(width: 8),
+                                            Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

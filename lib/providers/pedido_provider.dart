@@ -23,4 +23,41 @@ class PedidoProvider with ChangeNotifier {
       debugPrint("Aviso: No se pudo guardar en Firestore ($e). El pedido se conserva en la sesión local.");
     });
   }
+
+  void actualizarPedido(Pedido pedido) {
+    // 1. Actualizar localmente
+    final index = _pedidos.indexWhere((p) => p.id == pedido.id);
+    if (index != -1) {
+      _pedidos[index] = pedido;
+      notifyListeners();
+    }
+
+    // 2. Actualizar en Firestore de forma asíncrona sin bloquear la UI
+    FirebaseFirestore.instance
+        .collection('pedidos')
+        .doc(pedido.id)
+        .set(pedido.toMap())
+        .then((_) {
+      debugPrint("Pedido actualizado exitosamente en Firestore.");
+    }).catchError((e) {
+      debugPrint("Aviso: No se pudo actualizar en Firestore ($e).");
+    });
+  }
+
+  void eliminarPedido(String id) {
+    // 1. Eliminar localmente
+    _pedidos.removeWhere((p) => p.id == id);
+    notifyListeners();
+
+    // 2. Eliminar en Firestore de forma asíncrona sin bloquear la UI
+    FirebaseFirestore.instance
+        .collection('pedidos')
+        .doc(id)
+        .delete()
+        .then((_) {
+      debugPrint("Pedido eliminado exitosamente en Firestore.");
+    }).catchError((e) {
+      debugPrint("Aviso: No se pudo eliminar en Firestore ($e).");
+    });
+  }
 }
