@@ -66,7 +66,7 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
     }
   }
 
-  Future<void> _guardarAsignacion() async {
+  void _guardarAsignacion() {
     if (_selectedConductorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -81,84 +81,81 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
       _isLoading = true;
     });
 
-    try {
-      final routesRef = FirebaseFirestore.instance.collection('rutas');
-      final querySnapshot = await routesRef.where('conductorId', isEqualTo: _selectedConductorId).get();
-
+    // 1. Guardar la ruta en segundo plano (asíncronamente) sin bloquear la UI
+    FirebaseFirestore.instance
+        .collection('rutas')
+        .where('conductorId', isEqualTo: _selectedConductorId)
+        .get()
+        .then((querySnapshot) {
       if (querySnapshot.docs.isNotEmpty) {
-        // Actualizar ruta existente
         final doc = querySnapshot.docs.first;
         final List<dynamic> currentPedidos = doc.data()['pedidos'] ?? [];
         if (!currentPedidos.contains(widget.pedido.id)) {
           currentPedidos.add(widget.pedido.id);
-          await doc.reference.update({'pedidos': currentPedidos});
+          doc.reference.update({'pedidos': currentPedidos}).then((_) {
+            debugPrint("Pedido agregado a ruta existente de $_selectedConductorNombre.");
+          }).catchError((e) {
+            debugPrint("Error al actualizar ruta existente: $e");
+          });
         }
-        debugPrint("Pedido agregado a ruta existente de $_selectedConductorNombre.");
       } else {
-        // Crear nueva ruta
         final newRouteId = 'RUT-${DateTime.now().millisecondsSinceEpoch}';
-        await routesRef.doc(newRouteId).set({
+        FirebaseFirestore.instance.collection('rutas').doc(newRouteId).set({
           'id': newRouteId,
           'conductorId': _selectedConductorId,
           'pedidos': [widget.pedido.id],
+        }).then((_) {
+          debugPrint("Nueva ruta creada para $_selectedConductorNombre.");
+        }).catchError((e) {
+          debugPrint("Error al crear nueva ruta: $e");
         });
-        debugPrint("Nueva ruta creada para $_selectedConductorNombre.");
       }
+    }).catchError((e) {
+      debugPrint("Error al consultar rutas de conductor: $e");
+    });
 
-      // Actualizar el estado del pedido a 'En Ruta'
-      final pedidoActualizado = Pedido(
-        id: widget.pedido.id,
-        cliente: widget.pedido.cliente,
-        direccion: widget.pedido.direccion,
-        prioridad: widget.pedido.prioridad,
-        estado: 'En Ruta',
-        numeroCajas: widget.pedido.numeroCajas,
-        zona: widget.pedido.zona,
-      );
+    // 2. Crear el objeto pedido actualizado y guardar localmente de inmediato
+    final pedidoActualizado = Pedido(
+      id: widget.pedido.id,
+      cliente: widget.pedido.cliente,
+      direccion: widget.pedido.direccion,
+      prioridad: widget.pedido.prioridad,
+      estado: 'En Ruta',
+      numeroCajas: widget.pedido.numeroCajas,
+      zona: widget.pedido.zona,
+    );
 
-      if (mounted) {
-        // Usar provider para actualizar localmente e iniciar guardado en Firestore de fondo
-        Provider.of<PedidoProvider>(context, listen: false).actualizarPedido(pedidoActualizado);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Pedido asignado a $_selectedConductorNombre y cambiado a estado "En Ruta".',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+    if (mounted) {
+      // Usar provider para actualizar localmente e iniciar guardado en Firestore del pedido de fondo
+      Provider.of<PedidoProvider>(context, listen: false).actualizarPedido(pedidoActualizado);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Pedido asignado a $_selectedConductorNombre y cambiado a estado "En Ruta".',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ],
-            ),
-            backgroundColor: Colors.teal[600],
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            margin: const EdgeInsets.all(15),
+              ),
+            ],
           ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      debugPrint("Error al guardar asignación: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar asignación: $e'),
-            backgroundColor: Colors.red,
+          backgroundColor: Colors.teal[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
           ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+          margin: const EdgeInsets.all(15),
+        ),
+      );
+      
+      setState(() {
+        _isLoading = false;
+      });
+      Navigator.pop(context);
     }
   }
 
