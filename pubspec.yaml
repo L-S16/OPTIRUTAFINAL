@@ -27,10 +27,8 @@ dependencies:
   provider: ^6.1.2
 
   # Mapas
-  google_maps_flutter: ^2.5.3
 
   # GPS (VERSIÓN ESTABLE)
-  geolocator: ^11.1.0
 
   # Imágenes
   image_picker: ^1.1.2
