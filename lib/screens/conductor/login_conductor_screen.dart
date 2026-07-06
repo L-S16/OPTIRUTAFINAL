@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'conductor_dashboard.dart';
+import 'registro_conductor_screen.dart';
 
 class LoginConductorScreen extends StatelessWidget {
-  const LoginConductorScreen({Key? key}) : super(key: key);
+  const LoginConductorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -60,12 +62,38 @@ class LoginConductorScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   // Acción de inicio de sesión
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ConductorDashboard(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
                   'Iniciar Sesión',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botón Nuevo Usuario
+              OutlinedButton(
+                onPressed: () {
+                  // Navegar a la pantalla de registro
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RegistroConductorScreen(),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Nuevo Usuario',
                   style: TextStyle(fontSize: 18),
                 ),
               ),
