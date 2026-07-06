@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/pedido_provider.dart';
 import 'registrar_pedido.dart';
 import 'editar_pedido.dart';
+import 'clasificar_pedidos.dart';
 import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatelessWidget {
@@ -66,6 +67,18 @@ class BodegueroDashboard extends StatelessWidget {
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.map),
+            tooltip: 'Clasificar por Zona',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ClasificarPedidosScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Salir',

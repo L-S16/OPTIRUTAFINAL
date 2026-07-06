@@ -5,6 +5,7 @@ class Pedido {
   String prioridad;
   String estado;
   int numeroCajas;
+  String? zona;
 
   Pedido({
     required this.id,
@@ -13,6 +14,7 @@ class Pedido {
     required this.prioridad,
     required this.estado,
     required this.numeroCajas,
+    this.zona,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class Pedido {
       'prioridad': prioridad,
       'estado': estado,
       'numeroCajas': numeroCajas,
+      'zona': zona,
     };
   }
 
@@ -34,6 +37,7 @@ class Pedido {
       prioridad: map['prioridad'] ?? '',
       estado: map['estado'] ?? '',
       numeroCajas: map['numeroCajas'] ?? 0,
+      zona: map['zona'],
     );
   }
 }
