@@ -7,6 +7,25 @@ class PedidoProvider with ChangeNotifier {
 
   List<Pedido> get pedidos => [..._pedidos];
 
+  PedidoProvider() {
+    _cargarPedidos();
+  }
+
+  void _cargarPedidos() {
+    FirebaseFirestore.instance
+        .collection('pedidos')
+        .snapshots()
+        .listen((snapshot) {
+      _pedidos.clear();
+      for (var doc in snapshot.docs) {
+        _pedidos.add(Pedido.fromMap(doc.data()));
+      }
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint("Error al escuchar pedidos de Firestore: $e");
+    });
+  }
+
   Future<void> registrarPedido(Pedido pedido) async {
     // 1. Guardar localmente para respuesta inmediata de la UI
     _pedidos.add(pedido);
