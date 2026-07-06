@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class VerRutaAsignadaScreen extends StatelessWidget {
-  const VerRutaAsignadaScreen({Key? key}) : super(key: key);
+  const VerRutaAsignadaScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

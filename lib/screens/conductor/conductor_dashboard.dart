@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-
 class ConductorDashboard extends StatelessWidget {
-  const ConductorDashboard({Key? key}) : super(key: key);
+  const ConductorDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
