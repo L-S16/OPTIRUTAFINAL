@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "964647743537",
+    "project_id": "optiruta-7bf9f",
+    "storage_bucket": "optiruta-7bf9f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:964647743537:android:bc3110f256b44d278f2510",
+        "android_client_info": {
+          "package_name": "com.example.optirutafinal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgm3LrSeY6kFHiksyvi4A1Zlz2V45Sris"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
