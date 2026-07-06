@@ -5,6 +5,7 @@ import '../../providers/pedido_provider.dart';
 import 'registrar_pedido.dart';
 import 'editar_pedido.dart';
 import 'clasificar_pedidos.dart';
+import 'asignar_conductor_screen.dart';
 import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatefulWidget {
@@ -436,6 +437,13 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                               );
                                             } else if (value == 'eliminar') {
                                               _mostrarConfirmacionEliminar(pedido.id);
+                                            } else if (value == 'asignar') {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => AsignarConductorScreen(pedido: pedido),
+                                                ),
+                                              );
                                             }
                                           },
                                           itemBuilder: (BuildContext context) => [
@@ -459,6 +467,17 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                                 ],
                                               ),
                                             ),
+                                            if (pedido.estado == 'Pendiente')
+                                              const PopupMenuItem(
+                                                value: 'asignar',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.local_shipping, size: 18, color: Colors.teal),
+                                                    SizedBox(width: 8),
+                                                    Text('Asignar Conductor'),
+                                                  ],
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ],
