@@ -291,7 +291,7 @@ class _ClasificarPedidosScreenState extends State<ClasificarPedidosScreen> {
     );
   }
 
-  void _guardarClasificacion(BuildContext context, List<Pedido> pendientes) {
+  void _guardarClasificacion(BuildContext context, List<Pedido> pendientes) async {
     // Validar que se haya modificado o ingresado al menos una zona válida
     bool algunCambio = false;
     List<Pedido> pedidosAActualizar = [];
@@ -328,40 +328,52 @@ class _ClasificarPedidosScreenState extends State<ClasificarPedidosScreen> {
       _isLoading = true;
     });
 
-    final provider = Provider.of<PedidoProvider>(context, listen: false);
+    try {
+      final provider = Provider.of<PedidoProvider>(context, listen: false);
 
-    // Guardar todos de forma masiva
-    for (var p in pedidosAActualizar) {
-      provider.actualizarPedido(p);
-    }
+      // Guardar todos de forma masiva esperando a que terminen en Firestore
+      await Future.wait(pedidosAActualizar.map((p) => provider.actualizarPedido(p)));
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Clasificación geográfica guardada exitosamente.',
-                style: TextStyle(fontWeight: FontWeight.bold),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Clasificación geográfica guardada exitosamente.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: Colors.teal[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(15),
         ),
-        backgroundColor: Colors.teal[600],
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint("Error al guardar clasificación geográfica: $e");
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar la clasificación: $e'),
+          backgroundColor: Colors.red,
         ),
-        margin: const EdgeInsets.all(15),
-      ),
-    );
-
-    Navigator.pop(context);
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }

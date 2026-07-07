@@ -49,38 +49,52 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
       numeroCajas: numeroCajas,
     );
 
-    // Call provider (it updates locally immediately and Firestore in the background)
-    Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
+    try {
+      // Esperar a que se complete el registro en Firestore
+      await Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Pedido registrado exitosamente: $id',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Pedido registrado exitosamente: $id',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: Colors.teal[600],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(15),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.teal[600],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint("Error al registrar pedido: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al registrar el pedido: $e'),
+            backgroundColor: Colors.red,
           ),
-          margin: const EdgeInsets.all(15),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      Navigator.pop(context);
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

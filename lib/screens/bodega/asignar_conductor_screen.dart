@@ -35,16 +35,19 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
   Future<void> _cargarConductores() async {
     try {
       final querySnapshot = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .where('rol', isEqualTo: 'conductor')
+          .collection('conductores')
           .get();
 
       final List<Map<String, String>> loaded = [];
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
+        final String nombre = data['nombre'] ?? '';
+        final String apellido = data['apellido'] ?? '';
+        final String nombreCompleto = apellido.isNotEmpty ? '$nombre $apellido' : nombre;
+        
         loaded.add({
           'id': doc.id,
-          'nombre': data['nombre'] ?? 'Conductor sin nombre',
+          'nombre': nombreCompleto.isNotEmpty ? nombreCompleto : 'Conductor sin nombre',
           'correo': data['correo'] ?? '',
         });
       }
@@ -66,7 +69,7 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
     }
   }
 
-  void _guardarAsignacion() {
+  Future<void> _guardarAsignacion() async {
     if (_selectedConductorId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -81,54 +84,48 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
       _isLoading = true;
     });
 
-    // 1. Guardar la ruta en segundo plano (asíncronamente) sin bloquear la UI
-    FirebaseFirestore.instance
-        .collection('rutas')
-        .where('conductorId', isEqualTo: _selectedConductorId)
-        .get()
-        .then((querySnapshot) {
+    try {
+      // 1. Consultar y actualizar o crear la ruta en Firestore
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('rutas')
+          .where('conductorId', isEqualTo: _selectedConductorId)
+          .get();
+
       if (querySnapshot.docs.isNotEmpty) {
         final doc = querySnapshot.docs.first;
         final List<dynamic> currentPedidos = doc.data()['pedidos'] ?? [];
         if (!currentPedidos.contains(widget.pedido.id)) {
           currentPedidos.add(widget.pedido.id);
-          doc.reference.update({'pedidos': currentPedidos}).then((_) {
-            debugPrint("Pedido agregado a ruta existente de $_selectedConductorNombre.");
-          }).catchError((e) {
-            debugPrint("Error al actualizar ruta existente: $e");
-          });
+          await doc.reference.update({'pedidos': currentPedidos});
+          debugPrint("Pedido agregado a ruta existente de $_selectedConductorNombre.");
         }
       } else {
         final newRouteId = 'RUT-${DateTime.now().millisecondsSinceEpoch}';
-        FirebaseFirestore.instance.collection('rutas').doc(newRouteId).set({
+        await FirebaseFirestore.instance.collection('rutas').doc(newRouteId).set({
           'id': newRouteId,
           'conductorId': _selectedConductorId,
           'pedidos': [widget.pedido.id],
-        }).then((_) {
-          debugPrint("Nueva ruta creada para $_selectedConductorNombre.");
-        }).catchError((e) {
-          debugPrint("Error al crear nueva ruta: $e");
         });
+        debugPrint("Nueva ruta creada para $_selectedConductorNombre.");
       }
-    }).catchError((e) {
-      debugPrint("Error al consultar rutas de conductor: $e");
-    });
 
-    // 2. Crear el objeto pedido actualizado y guardar localmente de inmediato
-    final pedidoActualizado = Pedido(
-      id: widget.pedido.id,
-      cliente: widget.pedido.cliente,
-      direccion: widget.pedido.direccion,
-      prioridad: widget.pedido.prioridad,
-      estado: 'En Ruta',
-      numeroCajas: widget.pedido.numeroCajas,
-      zona: widget.pedido.zona,
-    );
+      // 2. Crear el objeto pedido actualizado y guardar en Firestore & localmente
+      final pedidoActualizado = Pedido(
+        id: widget.pedido.id,
+        cliente: widget.pedido.cliente,
+        direccion: widget.pedido.direccion,
+        prioridad: widget.pedido.prioridad,
+        estado: 'En Ruta',
+        numeroCajas: widget.pedido.numeroCajas,
+        zona: widget.pedido.zona,
+      );
 
-    if (mounted) {
-      // Usar provider para actualizar localmente e iniciar guardado en Firestore del pedido de fondo
-      Provider.of<PedidoProvider>(context, listen: false).actualizarPedido(pedidoActualizado);
-      
+      if (mounted) {
+        await Provider.of<PedidoProvider>(context, listen: false).actualizarPedido(pedidoActualizado);
+      }
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -151,11 +148,24 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
           margin: const EdgeInsets.all(15),
         ),
       );
-      
-      setState(() {
-        _isLoading = false;
-      });
+
       Navigator.pop(context);
+    } catch (e) {
+      debugPrint("Error al guardar asignación: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar la asignación: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

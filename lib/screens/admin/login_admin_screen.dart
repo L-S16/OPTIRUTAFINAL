@@ -13,13 +13,14 @@ class LoginAdminScreen extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/logo_optiruta.png',
-              height: 180,
-            ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo_optiruta.png',
+                height: 180,
+              ),
             const SizedBox(height: 20),
             const Text(
               'Login Super Administrador',
@@ -77,6 +78,7 @@ class LoginAdminScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

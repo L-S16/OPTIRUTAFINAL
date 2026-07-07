@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'bodeguero_dashboard.dart';
 import 'registrar_bodeguero_screen.dart';
 
@@ -46,14 +47,40 @@ class _LoginBodegueroScreenState extends State<LoginBodegueroScreen> {
         password: password,
       );
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const BodegueroDashboard(),
-          ),
-        );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final docRef = FirebaseFirestore.instance.collection('bodegueros').doc(user.uid);
+        final docSnap = await docRef.get();
+        if (!docSnap.exists) {
+          final localPart = email.split('@')[0];
+          final nameParts = localPart.split('.');
+          final formattedName = nameParts
+              .map((s) => s.isNotEmpty ? s[0].toUpperCase() + s.substring(1) : '')
+              .join(' ');
+          
+          await docRef.set({
+            'nombre': formattedName.isNotEmpty ? formattedName : 'Bodeguero',
+            'correo': email,
+            'fechaRegistro': DateTime.now().toIso8601String(),
+            'ultimoAcceso': DateTime.now().toIso8601String(),
+          });
+          debugPrint("Perfil de bodeguero auto-creado en Firestore al iniciar sesión.");
+        } else {
+          await docRef.update({
+            'ultimoAcceso': DateTime.now().toIso8601String(),
+          });
+          debugPrint("Último acceso de bodeguero actualizado en Firestore.");
+        }
       }
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BodegueroDashboard(),
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       String mensajeError = 'Ocurrió un error al iniciar sesión.';
       

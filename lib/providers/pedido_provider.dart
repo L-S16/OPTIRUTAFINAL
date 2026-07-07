@@ -27,56 +27,41 @@ class PedidoProvider with ChangeNotifier {
   }
 
   Future<void> registrarPedido(Pedido pedido) async {
-    // 1. Guardar localmente para respuesta inmediata de la UI
-    _pedidos.add(pedido);
-    notifyListeners();
-
-    // 2. Intentar guardar en Firestore de forma asíncrona sin bloquear la UI
-    FirebaseFirestore.instance
+    // Intentar guardar en Firestore primero. Si falla, el error se propaga.
+    await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(pedido.id)
-        .set(pedido.toMap())
-        .then((_) {
-      debugPrint("Pedido guardado exitosamente en Firestore.");
-    }).catchError((e) {
-      debugPrint("Aviso: No se pudo guardar en Firestore ($e). El pedido se conserva en la sesión local.");
-    });
+        .set(pedido.toMap());
+    
+    // Guardar localmente
+    _pedidos.add(pedido);
+    notifyListeners();
   }
 
-  void actualizarPedido(Pedido pedido) {
-    // 1. Actualizar localmente
+  Future<void> actualizarPedido(Pedido pedido) async {
+    // Intentar guardar en Firestore primero. Si falla, el error se propaga.
+    await FirebaseFirestore.instance
+        .collection('pedidos')
+        .doc(pedido.id)
+        .set(pedido.toMap());
+
+    // Actualizar localmente
     final index = _pedidos.indexWhere((p) => p.id == pedido.id);
     if (index != -1) {
       _pedidos[index] = pedido;
       notifyListeners();
     }
-
-    // 2. Actualizar en Firestore de forma asíncrona sin bloquear la UI
-    FirebaseFirestore.instance
-        .collection('pedidos')
-        .doc(pedido.id)
-        .set(pedido.toMap())
-        .then((_) {
-      debugPrint("Pedido actualizado exitosamente en Firestore.");
-    }).catchError((e) {
-      debugPrint("Aviso: No se pudo actualizar en Firestore ($e).");
-    });
   }
 
-  void eliminarPedido(String id) {
-    // 1. Eliminar localmente
-    _pedidos.removeWhere((p) => p.id == id);
-    notifyListeners();
-
-    // 2. Eliminar en Firestore de forma asíncrona sin bloquear la UI
-    FirebaseFirestore.instance
+  Future<void> eliminarPedido(String id) async {
+    // Intentar eliminar en Firestore primero. Si falla, el error se propaga.
+    await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(id)
-        .delete()
-        .then((_) {
-      debugPrint("Pedido eliminado exitosamente en Firestore.");
-    }).catchError((e) {
-      debugPrint("Aviso: No se pudo eliminar en Firestore ($e).");
-    });
+        .delete();
+
+    // Eliminar localmente
+    _pedidos.removeWhere((p) => p.id == id);
+    notifyListeners();
   }
 }
