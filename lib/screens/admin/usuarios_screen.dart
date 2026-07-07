@@ -42,6 +42,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
         'nombre': _nombreController.text.trim(),
         'correo': _correoController.text.trim(),
         'rol': _rolSeleccionado,
+        'estado': true,
         'fechaRegistro': FieldValue.serverTimestamp(),
       });
 
@@ -56,8 +57,6 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-
-      Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -95,11 +94,44 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
     } catch (e) {
       if (!mounted) return;
 
-      Navigator.pop(context);
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al actualizar usuario: $e'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _cambiarEstadoUsuario({
+    required String id,
+    required bool nuevoEstado,
+  }) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(id)
+          .update({
+        'estado': nuevoEstado,
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      final mensaje = nuevoEstado
+          ? 'Usuario activado correctamente'
+          : 'Usuario desactivado correctamente';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cambiar estado: $e'),
         ),
       );
     }
@@ -252,9 +284,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Center(
-            child: Text(
-              'Error al cargar los usuarios',
-            ),
+            child: Text('Error al cargar los usuarios'),
           );
         }
 
@@ -294,34 +324,63 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
             final rol =
                 datos['rol']?.toString() ?? 'Sin rol';
 
+            final bool estado =
+                datos['estado'] as bool? ?? true;
+
             return Card(
               elevation: 3,
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
-                leading: const CircleAvatar(
-                  child: Icon(Icons.person),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      estado ? Colors.green : Colors.grey,
+                  child: Icon(
+                    estado
+                        ? Icons.person
+                        : Icons.person_off,
+                    color: Colors.white,
+                  ),
                 ),
                 title: Text(
                   nombre,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
+                    color: estado
+                        ? Colors.black
+                        : Colors.grey,
                   ),
                 ),
                 subtitle: Text(
-                  '$correo\nRol: $rol',
+                  '$correo\n'
+                  'Rol: $rol\n'
+                  'Estado: ${estado ? 'Activo' : 'Inactivo'}',
                 ),
                 isThreeLine: true,
-                trailing: IconButton(
-                  tooltip: 'Editar usuario',
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    _mostrarFormularioEditar(
-                      id: documento.id,
-                      nombre: nombre,
-                      correo: correo,
-                      rol: rol,
-                    );
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Switch(
+                      value: estado,
+                      onChanged: (nuevoEstado) {
+                        _cambiarEstadoUsuario(
+                          id: documento.id,
+                          nuevoEstado: nuevoEstado,
+                        );
+                      },
+                    ),
+                    IconButton(
+                      tooltip: 'Editar usuario',
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {
+                        _mostrarFormularioEditar(
+                          id: documento.id,
+                          nombre: nombre,
+                          correo: correo,
+                          rol: rol,
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             );
