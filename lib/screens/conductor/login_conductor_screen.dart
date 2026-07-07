@@ -1,9 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'conductor_dashboard.dart';
 import 'registro_conductor_screen.dart';
 
-class LoginConductorScreen extends StatelessWidget {
+class LoginConductorScreen extends StatefulWidget {
   const LoginConductorScreen({super.key});
+
+  @override
+  State<LoginConductorScreen> createState() => _LoginConductorScreenState();
+}
+
+class _LoginConductorScreenState extends State<LoginConductorScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String _errorMessage = '';
+
+  Future<void> _iniciarSesion() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ConductorDashboard()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          _errorMessage = 'Correo/contraseña incorrectos';
+        } else {
+          _errorMessage = 'Error al iniciar sesión: ${e.code}';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Ocurrió un error inesperado: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,26 +73,14 @@ class LoginConductorScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo OPTIRUTA
-              const Icon(
-                Icons.local_shipping,
-                size: 100,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'OPTIRUTA',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
+              Image.asset('assets/images/logo_optiruta.png', height: 100),
               const SizedBox(height: 48),
-
-              // Campo Correo
+              if (_errorMessage.isNotEmpty) ...[
+                Text(_errorMessage, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+              ],
               TextFormField(
+                controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Correo',
@@ -46,9 +89,8 @@ class LoginConductorScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Campo Contraseña
               TextFormField(
+                controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
@@ -57,45 +99,20 @@ class LoginConductorScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // Botón Iniciar Sesión
-              ElevatedButton(
-                onPressed: () {
-                  // Acción de inicio de sesión
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ConductorDashboard(),
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _iniciarSesion,
+                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                      child: const Text('Iniciar Sesión', style: TextStyle(fontSize: 18)),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'Iniciar Sesión',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
               const SizedBox(height: 16),
-              // Botón Nuevo Usuario
               OutlinedButton(
                 onPressed: () {
-                  // Navegar a la pantalla de registro
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegistroConductorScreen(),
-                    ),
-                  );
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RegistroConductorScreen()));
                 },
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'Nuevo Usuario',
-                  style: TextStyle(fontSize: 18),
-                ),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: const Text('Nuevo Usuario', style: TextStyle(fontSize: 18)),
               ),
             ],
           ),
