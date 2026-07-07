@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -29,10 +31,18 @@ class AdminDashboardScreen extends StatelessWidget {
               valor: '6',
               icono: Icons.person,
             ),
-            const DashboardCard(
+            DashboardCard(
               titulo: 'Rutas',
-              valor: '4',
+              valor: 'Gestionar',
               icono: Icons.route,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RutasScreen(),
+                  ),
+                );
+              },
             ),
             const DashboardCard(
               titulo: 'Entregas',
