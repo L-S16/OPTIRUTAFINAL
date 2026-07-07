@@ -1,9 +1,8 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-
-import 'firebase_options.dart';
 import 'providers/pedido_provider.dart';
+import 'firebase_options.dart';
 import 'screens/admin/login_admin_screen.dart';
 
 Future<void> main() async {
@@ -16,9 +15,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => PedidoProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => PedidoProvider()),
       ],
       child: const MyApp(),
     ),
