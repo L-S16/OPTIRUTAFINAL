@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'admin_dashboard.dart';
 import '../bodega/login_bodeguero_screen.dart';
+import '../conductor/login_conductor_screen.dart';
 
 class LoginAdminScreen extends StatelessWidget {
   const LoginAdminScreen({super.key});
@@ -21,64 +22,81 @@ class LoginAdminScreen extends StatelessWidget {
                 'assets/images/logo_optiruta.png',
                 height: 180,
               ),
-            const SizedBox(height: 20),
-            const Text(
-              'Login Super Administrador',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 20),
+              const Text(
+                'Login Super Administrador',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Correo',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 30),
+              const TextField(
+                decoration: InputDecoration(
+                  labelText: 'Correo',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            const TextField(
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Contraseña',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+              const TextField(
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const AdminDashboardScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Iniciar Sesión'),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AdminDashboardScreen(),
+                      builder: (context) =>
+                          const LoginBodegueroScreen(),
                     ),
                   );
                 },
-                child: const Text('Iniciar Sesión'),
+                child: const Text(
+                  '¿Eres Bodeguero? Iniciar sesión aquí',
+                  style: TextStyle(color: Colors.blue),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoginBodegueroScreen(),
-                  ),
-                );
-              },
-              child: const Text(
-                '¿Eres Bodeguero? Iniciar sesión aquí',
-                style: TextStyle(color: Colors.blue),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const LoginConductorScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  '¿Eres Conductor? Iniciar sesión aquí',
+                  style: TextStyle(color: Colors.blue),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
