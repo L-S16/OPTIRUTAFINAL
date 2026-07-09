@@ -4,6 +4,7 @@ import 'login_admin_screen.dart';
 import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
 import 'conductores_screen.dart';
+import 'reportes_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -72,10 +73,27 @@ class AdminDashboardScreen extends StatelessWidget {
                 );
               },
             ),
-            const DashboardCard(
-              titulo: 'Entregas',
-              valor: '12',
-              icono: Icons.local_shipping,
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('pedidos')
+                  .where('estado', isEqualTo: 'Entregado')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
+                return DashboardCard(
+                  titulo: 'Entregas',
+                  valor: valor,
+                  icono: Icons.local_shipping,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReportesScreen(initialTab: 0),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             DashboardCard(
               titulo: 'Usuarios',
