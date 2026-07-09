@@ -36,10 +36,25 @@ class AdminDashboardScreen extends StatelessWidget {
           crossAxisSpacing: 15,
           mainAxisSpacing: 15,
           children: [
-            const DashboardCard(
-              titulo: 'Pedidos',
-              valor: '15',
-              icono: Icons.inventory,
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('pedidos').snapshots(),
+              builder: (context, snapshot) {
+                final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
+                return DashboardCard(
+                  titulo: 'Pedidos',
+                  valor: valor,
+                  icono: Icons.inventory,
+                  onTap: () {
+                    // Navega a reportes (vista general de pedidos)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReportesScreen(initialTab: 1),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('conductores').snapshots(),
@@ -60,16 +75,22 @@ class AdminDashboardScreen extends StatelessWidget {
                 );
               },
             ),
-            DashboardCard(
-              titulo: 'Rutas',
-              valor: 'Gestionar',
-              icono: Icons.route,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RutasScreen(),
-                  ),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('rutas').snapshots(),
+              builder: (context, snapshot) {
+                final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
+                return DashboardCard(
+                  titulo: 'Rutas',
+                  valor: valor,
+                  icono: Icons.route,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RutasScreen(),
+                      ),
+                    );
+                  },
                 );
               },
             ),

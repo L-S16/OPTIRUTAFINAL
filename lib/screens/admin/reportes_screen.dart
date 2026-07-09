@@ -90,6 +90,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  // HUA-08: Simular la exportación de reportes de entregas en formato PDF/Excel/CSV
   void _simularExportar(int totalPedidos) {
     showDialog(
       context: context,
