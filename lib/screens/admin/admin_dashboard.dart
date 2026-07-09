@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_admin_screen.dart';
-
 import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
+import 'conductores_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -39,10 +40,24 @@ class AdminDashboardScreen extends StatelessWidget {
               valor: '15',
               icono: Icons.inventory,
             ),
-            const DashboardCard(
-              titulo: 'Conductores',
-              valor: '6',
-              icono: Icons.person,
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('conductores').snapshots(),
+              builder: (context, snapshot) {
+                final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
+                return DashboardCard(
+                  titulo: 'Conductores',
+                  valor: valor,
+                  icono: Icons.person,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ConductoresScreen(),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             DashboardCard(
               titulo: 'Rutas',
