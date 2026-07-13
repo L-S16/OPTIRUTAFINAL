@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 
 class VerRutaAsignadaScreen extends StatefulWidget {
   final String routeId;
@@ -28,6 +29,8 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     exportBackgroundColor: Colors.white,
   );
   bool _isSaving = false;
+  final ImagePicker _picker = ImagePicker();
+  String? _fotoBase64;
 
   @override
   void initState() {
@@ -77,6 +80,28 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     }
   }
 
+  Future<void> _tomarFoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 50, // Reducir calidad para no saturar Base64
+        maxWidth: 800,
+      );
+      if (photo != null) {
+        final bytes = await photo.readAsBytes();
+        setState(() {
+          _fotoBase64 = base64Encode(bytes);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al tomar foto: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _guardarCambios() async {
     setState(() => _isSaving = true);
     try {
@@ -97,6 +122,7 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
         'estado': _estadoEntrega,
         'observaciones': _observacionesController.text,
         if (firmaBase64 != null) 'firmaBase64': firmaBase64,
+        if (_fotoBase64 != null) 'fotoBase64': _fotoBase64,
       });
 
       if (mounted) {
@@ -219,6 +245,39 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                 ),
 
                 if (_estadoEntrega == 'Entregado') ...[
+                  const SizedBox(height: 24),
+                  const Text('Evidencia Fotográfica', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (_fotoBase64 != null) ...[
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          base64Decode(_fotoBase64!),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _tomarFoto,
+                      icon: const Icon(Icons.camera_alt),
+                      label: Text(_fotoBase64 == null ? 'Tomar Foto' : 'Tomar Otra Foto'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
                   const Text('Firma del Cliente', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),

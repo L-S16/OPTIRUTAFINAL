@@ -8,6 +8,7 @@ class ConductorDashboard extends StatelessWidget {
   const ConductorDashboard({super.key});
 
   void _crearRutaDePrueba() {
+    final user = FirebaseAuth.instance.currentUser;
     FirebaseFirestore.instance.collection('entregas').add({
       'numeroRuta': '001',
       'origen': 'Ubicación Actual',
@@ -16,6 +17,7 @@ class ConductorDashboard extends StatelessWidget {
       'observaciones': '',
       'firmaUrl': null,
       'fechaCreacion': FieldValue.serverTimestamp(),
+      'conductorId': user?.uid, // <-- Guardamos el ID del conductor
     });
   }
 
@@ -55,6 +57,7 @@ class ConductorDashboard extends StatelessWidget {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('entregas')
+                  .where('conductorId', isEqualTo: user?.uid)
                   .where('estado', whereIn: ['Pendiente', 'No entregado', 'Reprogramado'])
                   .snapshots(),
               builder: (context, snapshot) {

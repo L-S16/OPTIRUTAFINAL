@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HistorialEntregasScreen extends StatelessWidget {
   const HistorialEntregasScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de Entregas'),
@@ -14,6 +17,7 @@ class HistorialEntregasScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('entregas')
+            .where('conductorId', isEqualTo: currentUser?.uid)
             .where('estado', isEqualTo: 'Entregado')
             .snapshots(),
         builder: (context, snapshot) {
@@ -39,6 +43,7 @@ class HistorialEntregasScreen extends StatelessWidget {
               final numRuta = data['numeroRuta'] ?? 'Desconocida';
               final observaciones = data['observaciones'] ?? '';
               final firmaBase64 = data['firmaBase64'];
+              final fotoBase64 = data['fotoBase64'];
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -65,6 +70,26 @@ class HistorialEntregasScreen extends StatelessWidget {
                       if (observaciones.isNotEmpty)
                         Text('Observaciones: $observaciones'),
                       const SizedBox(height: 12),
+                      
+                      if (fotoBase64 != null && fotoBase64.isNotEmpty) ...[
+                        const Text('Evidencia fotográfica:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.grey.shade100,
+                          ),
+                          child: Image.memory(
+                            base64Decode(fotoBase64),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
                       if (firmaBase64 != null && firmaBase64.isNotEmpty) ...[
                         const Text('Firma del cliente:', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
