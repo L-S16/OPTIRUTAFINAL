@@ -125,6 +125,17 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
         if (_fotoBase64 != null) 'fotoBase64': _fotoBase64,
       });
 
+      // Sincronizar el estado del pedido en la colección 'pedidos'
+      final String? pedidoId = widget.routeData['pedidoId'] ?? widget.routeData['numeroRuta'];
+      if (pedidoId != null && pedidoId.startsWith('PED-')) {
+        await FirebaseFirestore.instance
+            .collection('pedidos')
+            .doc(pedidoId)
+            .update({
+          'estado': _estadoEntrega == 'Pendiente' ? 'En Ruta' : _estadoEntrega,
+        });
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cambios guardados correctamente')),

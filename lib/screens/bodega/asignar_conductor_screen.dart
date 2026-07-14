@@ -85,6 +85,21 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
     });
 
     try {
+      // 0. Remover el pedido de cualquier ruta anterior asignada a otros conductores
+      final oldRoutesQuery = await FirebaseFirestore.instance
+          .collection('rutas')
+          .where('pedidos', arrayContains: widget.pedido.id)
+          .get();
+
+      for (var doc in oldRoutesQuery.docs) {
+        if (doc.data()['conductorId'] != _selectedConductorId) {
+          final List<dynamic> oldPedidos = doc.data()['pedidos'] ?? [];
+          oldPedidos.remove(widget.pedido.id);
+          await doc.reference.update({'pedidos': oldPedidos});
+          debugPrint("Pedido removido de la ruta anterior ${doc.id}.");
+        }
+      }
+
       // 1. Consultar y actualizar o crear la ruta en Firestore
       final querySnapshot = await FirebaseFirestore.instance
           .collection('rutas')
@@ -109,13 +124,33 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
         debugPrint("Nueva ruta creada para $_selectedConductorNombre.");
       }
 
+      // 1.5 Crear/Actualizar la entrega en la colección 'entregas' para que le aparezca al conductor
+      final entregaDocId = 'ENT-${widget.pedido.id}';
+      await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc(entregaDocId)
+          .set({
+        'id': entregaDocId,
+        'pedidoId': widget.pedido.id,
+        'numeroRuta': widget.pedido.id,
+        'origen': 'Bodega Principal',
+        'destino': widget.pedido.direccion,
+        'estado': 'Por Cargar',
+        'observaciones': '',
+        'firmaBase64': null,
+        'fotoBase64': null,
+        'fechaCreacion': FieldValue.serverTimestamp(),
+        'conductorId': _selectedConductorId,
+      });
+      debugPrint("Entrega creada/actualizada para conductor $_selectedConductorNombre.");
+
       // 2. Crear el objeto pedido actualizado y guardar en Firestore & localmente
       final pedidoActualizado = Pedido(
         id: widget.pedido.id,
         cliente: widget.pedido.cliente,
         direccion: widget.pedido.direccion,
         prioridad: widget.pedido.prioridad,
-        estado: 'En Ruta',
+        estado: 'Asignado',
         numeroCajas: widget.pedido.numeroCajas,
         zona: widget.pedido.zona,
       );
@@ -134,7 +169,7 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Pedido asignado a $_selectedConductorNombre y cambiado a estado "En Ruta".',
+                  'Pedido asignado a $_selectedConductorNombre. Listo para carga.',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -345,52 +380,57 @@ class _AsignarConductorScreenState extends State<AsignarConductorScreen> {
           Expanded(
             child: _loadingConductores
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: _conductores.length,
-                    itemBuilder: (context, index) {
-                      final cond = _conductores[index];
-                      final isSelected = _selectedConductorId == cond['id'];
+                : RadioGroup<String>(
+                    groupValue: _selectedConductorId,
+                    onChanged: (value) {
+                      if (value != null) {
+                        final cond = _conductores.firstWhere((c) => c['id'] == value);
+                        setState(() {
+                          _selectedConductorId = value;
+                          _selectedConductorNombre = cond['nombre'];
+                        });
+                      }
+                    },
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: _conductores.length,
+                      itemBuilder: (context, index) {
+                        final cond = _conductores[index];
+                        final isSelected = _selectedConductorId == cond['id'];
 
-                      return Card(
-                        elevation: isSelected ? 3 : 1,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isSelected ? Colors.blueAccent[700]! : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: RadioListTile<String>(
-                          value: cond['id']!,
-                          groupValue: _selectedConductorId,
-                          activeColor: Colors.blueAccent[700],
-                          title: Text(
-                            cond['nombre']!,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          subtitle: Text(
-                            cond['correo']!,
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                          secondary: CircleAvatar(
-                            backgroundColor: isSelected ? Colors.blue[50] : Colors.grey[200],
-                            child: Icon(
-                              Icons.local_shipping,
-                              color: isSelected ? Colors.blueAccent[700] : Colors.grey[600],
-                              size: 20,
+                        return Card(
+                          elevation: isSelected ? 3 : 1,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: isSelected ? Colors.blueAccent[700]! : Colors.transparent,
+                              width: 1.5,
                             ),
                           ),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedConductorId = value;
-                              _selectedConductorNombre = cond['nombre'];
-                            });
-                          },
-                        ),
-                      );
-                    },
+                          child: RadioListTile<String>(
+                            value: cond['id']!,
+                            activeColor: Colors.blueAccent[700],
+                            title: Text(
+                              cond['nombre']!,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              cond['correo']!,
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                            secondary: CircleAvatar(
+                              backgroundColor: isSelected ? Colors.blue[50] : Colors.grey[200],
+                              child: Icon(
+                                Icons.local_shipping,
+                                color: isSelected ? Colors.blueAccent[700] : Colors.grey[600],
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
           ),
 

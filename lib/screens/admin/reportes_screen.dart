@@ -52,6 +52,8 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
         return BitmapDescriptor.hueGreen;
       case 'En Ruta':
         return BitmapDescriptor.hueAzure;
+      case 'Asignado':
+        return BitmapDescriptor.hueYellow;
       case 'Pendiente':
       case 'Reprogramado':
         return BitmapDescriptor.hueOrange;
@@ -69,6 +71,8 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
         return Colors.green;
       case 'En Ruta':
         return Colors.blueAccent;
+      case 'Asignado':
+        return Colors.orange[800]!;
       case 'Pendiente':
       case 'Reprogramado':
         return Colors.orange;
@@ -274,6 +278,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                   const Text('Estados de Pedidos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   const Divider(height: 8),
                   _buildLegendItem('Pendiente / Reprogramado', Colors.orange),
+                  _buildLegendItem('Asignado (Sin Cargar)', Colors.orange[800]!),
                   _buildLegendItem('En Ruta', Colors.blueAccent),
                   _buildLegendItem('Entregado', Colors.green),
                   _buildLegendItem('Cancelado', Colors.red),
@@ -324,6 +329,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
     int total = pedidos.length;
     int entregados = pedidos.where((d) => (d.data() as Map)['estado'] == 'Entregado').length;
     int enRuta = pedidos.where((d) => (d.data() as Map)['estado'] == 'En Ruta').length;
+    int asignados = pedidos.where((d) => (d.data() as Map)['estado'] == 'Asignado').length;
     int pendientes = pedidos.where((d) => (d.data() as Map)['estado'] == 'Pendiente').length;
 
     return Column(
@@ -336,6 +342,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
               _buildKpiCard('Total', total.toString(), Colors.blueAccent),
               _buildKpiCard('Entregado', entregados.toString(), Colors.green),
               _buildKpiCard('En Ruta', enRuta.toString(), Colors.purple),
+              _buildKpiCard('Asignado', asignados.toString(), Colors.amber[800]!),
               _buildKpiCard('Pendiente', pendientes.toString(), Colors.orange),
             ],
           ),
@@ -374,6 +381,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                           items: const [
                             DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                             DropdownMenuItem(value: 'Pendiente', child: Text('Pendiente')),
+                            DropdownMenuItem(value: 'Asignado', child: Text('Asignado')),
                             DropdownMenuItem(value: 'En Ruta', child: Text('En Ruta')),
                             DropdownMenuItem(value: 'Entregado', child: Text('Entregado')),
                           ],

@@ -22,7 +22,7 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
   bool _isLoading = false;
 
   final List<String> _prioridades = ['Alta', 'Media', 'Baja'];
-  final List<String> _estados = ['Pendiente', 'En Ruta', 'Entregado'];
+  final List<String> _estados = ['Pendiente', 'Asignado', 'En Ruta', 'Entregado'];
 
   @override
   void initState() {
@@ -131,6 +131,8 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
         return Colors.teal;
       case 'En Ruta':
         return Colors.blueAccent;
+      case 'Asignado':
+        return Colors.orange[800]!;
       case 'Pendiente':
       default:
         return Colors.orange;
@@ -297,7 +299,7 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
                               Expanded(
                                 flex: 6,
                                 child: DropdownButtonFormField<String>(
-                                  value: _prioridadSeleccionada,
+                                  initialValue: _prioridadSeleccionada,
                                   decoration: InputDecoration(
                                     labelText: 'Prioridad',
                                     prefixIcon: Icon(Icons.flag, color: _getPriorityColor(_prioridadSeleccionada)),
@@ -343,7 +345,7 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
 
                           // ESTADO DEL PEDIDO
                           DropdownButtonFormField<String>(
-                            value: _estadoSeleccionada,
+                            initialValue: _estadoSeleccionada,
                             decoration: InputDecoration(
                               labelText: 'Estado del Pedido',
                               prefixIcon: Icon(Icons.info_outline, color: _getEstadoColor(_estadoSeleccionada)),

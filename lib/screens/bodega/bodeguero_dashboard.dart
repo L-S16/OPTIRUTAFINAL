@@ -6,6 +6,7 @@ import 'registrar_pedido.dart';
 import 'editar_pedido.dart';
 import 'clasificar_pedidos.dart';
 import 'asignar_conductor_screen.dart';
+import 'confirmar_carga_screen.dart';
 import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatefulWidget {
@@ -21,7 +22,7 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
   String _selectedPrioridad = 'Todos';
   String _selectedZona = 'Todos';
 
-  final List<String> _estados = ['Todos', 'Pendiente', 'En Ruta', 'Entregado'];
+  final List<String> _estados = ['Todos', 'Pendiente', 'Asignado', 'En Ruta', 'Entregado'];
   final List<String> _prioridades = ['Todos', 'Alta', 'Media', 'Baja'];
   final List<String> _zonas = ['Todos', 'Norte', 'Sur', 'Este', 'Oeste', 'Centro', 'Sin Clasificar'];
 
@@ -156,6 +157,18 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.playlist_add_check),
+            tooltip: 'Checklist de Carga',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ConfirmarCargaScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.map),
             tooltip: 'Clasificar por Zona',
@@ -410,13 +423,25 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.blue[50],
+                                            color: pedido.estado == 'Entregado'
+                                                ? Colors.green[50]
+                                                : pedido.estado == 'En Ruta'
+                                                    ? Colors.blue[50]
+                                                    : pedido.estado == 'Asignado'
+                                                        ? Colors.orange[50]
+                                                        : Colors.grey[100],
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(
                                             pedido.estado,
                                             style: TextStyle(
-                                              color: Colors.blueAccent[700],
+                                              color: pedido.estado == 'Entregado'
+                                                  ? Colors.green[700]
+                                                  : pedido.estado == 'En Ruta'
+                                                      ? Colors.blue[700]
+                                                      : pedido.estado == 'Asignado'
+                                                          ? Colors.orange[800]
+                                                          : Colors.grey[700],
                                               fontWeight: FontWeight.bold,
                                               fontSize: 11,
                                             ),
@@ -442,6 +467,13 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) => AsignarConductorScreen(pedido: pedido),
+                                                ),
+                                              );
+                                            } else if (value == 'confirmar_carga') {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => const ConfirmarCargaScreen(),
                                                 ),
                                               );
                                             }
@@ -475,6 +507,17 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                                     Icon(Icons.local_shipping, size: 18, color: Colors.teal),
                                                     SizedBox(width: 8),
                                                     Text('Asignar Conductor'),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (pedido.estado == 'Asignado')
+                                              const PopupMenuItem(
+                                                value: 'confirmar_carga',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.playlist_add_check, size: 18, color: Colors.orange),
+                                                    SizedBox(width: 8),
+                                                    Text('Confirmar Carga'),
                                                   ],
                                                 ),
                                               ),
