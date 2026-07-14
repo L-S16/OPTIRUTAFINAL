@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ReportesScreen extends StatefulWidget {
   final int initialTab;
@@ -94,64 +97,261 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  // HUA-08: Simular la exportación de reportes de entregas en formato PDF/Excel/CSV
-  void _simularExportar(int totalPedidos) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            bool exportando = true;
-            String formato = 'PDF';
+  // HUA-08: Exportación real de reportes de entregas a PDF utilizando pdf y printing
+  Future<void> _exportarPDFReal(List<QueryDocumentSnapshot> pedidos, Map<String, String> conductorPorPedido) async {
+    final pdf = pw.Document();
 
-            // Simular carga de exportación
-            Future.delayed(const Duration(seconds: 2), () {
-              if (context.mounted) {
-                setDialogState(() {
-                  exportando = false;
-                });
-              }
-            });
+    // Cálculos de Resumen
+    int total = pedidos.length;
+    int entregados = pedidos.where((d) => (d.data() as Map)['estado'] == 'Entregado').length;
+    int enRuta = pedidos.where((d) => (d.data() as Map)['estado'] == 'En Ruta').length;
+    int pendientes = pedidos.where((d) => (d.data() as Map)['estado'] == 'Pendiente' || (d.data() as Map)['estado'] == 'Asignado').length;
 
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Text('Exportar Reporte de Entregas'),
-              content: exportando
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 20),
-                        Text('Generando archivo $formato para $totalPedidos pedidos...'),
-                      ],
-                    )
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 60),
-                        const SizedBox(height: 15),
-                        const Text(
-                          '¡Reporte Generado!',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'El reporte ha sido exportado exitosamente en formato $formato.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+    final dateParts = DateTime.now().toIso8601String().split('T');
+    final String fechaActual = '${dateParts[0]} ${dateParts[1].substring(0, 5)}';
+
+    final blueColor = PdfColor.fromHex('#1565c0');
+    final greenColor = PdfColor.fromHex('#2e7d32');
+    final purpleColor = PdfColor.fromHex('#6a1b9a');
+    final orangeColor = PdfColor.fromHex('#ef6c00');
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.letter.copyWith(
+          marginBottom: 1.5 * PdfPageFormat.cm,
+          marginTop: 1.5 * PdfPageFormat.cm,
+          marginLeft: 1.5 * PdfPageFormat.cm,
+          marginRight: 1.5 * PdfPageFormat.cm,
+        ),
+        build: (pw.Context context) {
+          return [
+            // Cabecera Principal
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'OPTIRUTA',
+                      style: pw.TextStyle(
+                        fontSize: 26,
+                        fontWeight: pw.FontWeight.bold,
+                        color: blueColor,
+                      ),
                     ),
-              actions: [
-                if (!exportando)
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Sistema Inteligente de Gestión de Rutas',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.grey700,
+                        fontStyle: pw.FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'REPORTE DE ENTREGAS',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey900,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Fecha: $fechaActual',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                  ],
+                ),
               ],
-            );
-          },
+            ),
+            pw.Divider(thickness: 2, color: blueColor, height: 25),
+            
+            // KPIs / Resumen
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                _buildPdfKpiCard('Total Pedidos', total.toString(), blueColor),
+                _buildPdfKpiCard('Entregados', entregados.toString(), greenColor),
+                _buildPdfKpiCard('En Ruta', enRuta.toString(), purpleColor),
+                _buildPdfKpiCard('Pendientes', pendientes.toString(), orangeColor),
+              ],
+            ),
+            pw.SizedBox(height: 25),
+
+            // Título de la tabla
+            pw.Text(
+              'Detalle General de Despachos',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey800,
+              ),
+            ),
+            pw.SizedBox(height: 10),
+
+            // Tabla de Pedidos
+            pw.Table(
+              border: const pw.TableBorder(
+                horizontalInside: pw.BorderSide(width: 0.5, color: PdfColors.grey300),
+                bottom: pw.BorderSide(width: 1, color: PdfColors.grey400),
+                top: pw.BorderSide(width: 1, color: PdfColors.grey400),
+              ),
+              columnWidths: const {
+                0: pw.FlexColumnWidth(2.5), // ID
+                1: pw.FlexColumnWidth(3.5), // Cliente
+                2: pw.FlexColumnWidth(4.5), // Dirección
+                3: pw.FlexColumnWidth(2.0), // Prioridad
+                4: pw.FlexColumnWidth(1.5), // Cajas
+                5: pw.FlexColumnWidth(3.0), // Conductor
+                6: pw.FlexColumnWidth(2.0), // Estado
+              },
+              children: [
+                // Fila de Encabezado
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColors.blueAccent700,
+                  ),
+                  children: [
+                    _buildTableHeaderCell('ID Pedido'),
+                    _buildTableHeaderCell('Cliente'),
+                    _buildTableHeaderCell('Dirección'),
+                    _buildTableHeaderCell('Prioridad', align: pw.TextAlign.center),
+                    _buildTableHeaderCell('Cajas', align: pw.TextAlign.center),
+                    _buildTableHeaderCell('Conductor'),
+                    _buildTableHeaderCell('Estado', align: pw.TextAlign.center),
+                  ],
+                ),
+                // Filas de Datos
+                ...pedidos.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final id = data['id'] ?? doc.id;
+                  final cliente = data['cliente'] ?? 'Cliente';
+                  final direccion = data['direccion'] ?? 'Sin dirección';
+                  final prioridad = data['prioridad'] ?? 'Media';
+                  final estado = data['estado'] ?? 'Pendiente';
+                  final cajas = (data['numeroCajas'] ?? 0).toString();
+                  final conductor = conductorPorPedido[id] ?? 'No asignado';
+
+                  return pw.TableRow(
+                    children: [
+                      _buildTableCell(id),
+                      _buildTableCell(cliente),
+                      _buildTableCell(direccion),
+                      _buildTableCell(prioridad, align: pw.TextAlign.center),
+                      _buildTableCell(cajas, align: pw.TextAlign.center),
+                      _buildTableCell(conductor),
+                      _buildTableCell(estado, align: pw.TextAlign.center),
+                    ],
+                  );
+                }),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // Pie de página
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Text(
+                'OPTIRUTA © ${DateTime.now().year} - Reporte Generado del Sistema de Monitoreo',
+                style: const pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    try {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        name: 'Reporte_Entregas_${fechaActual.replaceAll(' ', '_')}.pdf',
+      );
+    } catch (e) {
+      debugPrint("Error al exportar PDF real: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar el reporte PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
-      },
+      }
+    }
+  }
+
+  // Método auxiliar para construir tarjetas de KPIs en el PDF
+  static pw.Widget _buildPdfKpiCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      width: 110,
+      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.Border.all(color: color, width: 1),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            title,
+            style: const pw.TextStyle(
+              fontSize: 8,
+              color: PdfColors.grey700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _buildTableHeaderCell(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 9,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _buildTableCell(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        style: const pw.TextStyle(
+          fontSize: 8,
+          color: PdfColors.grey800,
+        ),
+      ),
     );
   }
 
@@ -496,7 +696,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () => _simularExportar(filteredPedidos.length),
+              onPressed: () => _exportarPDFReal(filteredPedidos, conductorPorPedido),
               icon: const Icon(Icons.download),
               label: const Text('Exportar Reporte', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
