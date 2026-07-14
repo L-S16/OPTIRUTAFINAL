@@ -186,7 +186,7 @@ class _ClasificarPedidosScreenState extends State<ClasificarPedidosScreen> {
                                 children: [
                                   Expanded(
                                     child: DropdownButtonFormField<String>(
-                                      value: currentSelection.isEmpty ? null : currentSelection,
+                                      initialValue: currentSelection.isEmpty ? null : currentSelection,
                                       hint: const Text('Asignar Zona Geográfica'),
                                       decoration: InputDecoration(
                                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

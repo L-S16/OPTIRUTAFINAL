@@ -270,7 +270,7 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
                               Expanded(
                                 flex: 6,
                                 child: DropdownButtonFormField<String>(
-                                  value: _prioridadSeleccionada,
+                                  initialValue: _prioridadSeleccionada,
                                   decoration: InputDecoration(
                                     labelText: 'Prioridad',
                                     prefixIcon: Icon(Icons.flag, color: _getPriorityColor(_prioridadSeleccionada)),

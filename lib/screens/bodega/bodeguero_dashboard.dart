@@ -7,6 +7,7 @@ import 'editar_pedido.dart';
 import 'clasificar_pedidos.dart';
 import 'asignar_conductor_screen.dart';
 import 'confirmar_carga_screen.dart';
+import 'inventario_screen.dart';
 import '../admin/login_admin_screen.dart';
 
 class BodegueroDashboard extends StatefulWidget {
@@ -177,6 +178,18 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ClasificarPedidosScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.inventory_2),
+            tooltip: 'Ver Inventario',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const InventarioScreen(),
                 ),
               );
             },
