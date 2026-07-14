@@ -222,7 +222,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
                       ),
                       const SizedBox(height: 15),
                       DropdownButtonFormField<String>(
-                        value: _rolSeleccionado,
+                        initialValue: _rolSeleccionado,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           prefixIcon: Icon(Icons.badge),
