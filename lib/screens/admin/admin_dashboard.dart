@@ -1,13 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'login_admin_screen.dart';
 import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
 import 'conductores_screen.dart';
 import 'reportes_screen.dart';
+import '../../providers/pedido_provider.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
+
+  void _mostrarConfiguracionLetra(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Consumer<PedidoProvider>(
+          builder: (context, provider, child) {
+            return AlertDialog(
+              title: const Text('Configuración Visual'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Configura el estilo de letra y tema de la aplicación:'),
+                  const SizedBox(height: 15),
+                  SwitchListTile(
+                    title: const Text('Tema Oscuro (Letra Blanca)'),
+                    value: !provider.isDarkFont,
+                    onChanged: (value) {
+                      provider.setFontColor(!value);
+                    },
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Tamaño de Letra:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<double>(
+                    initialValue: provider.fontSizeFactor,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 0.85,
+                        child: Text('Pequeño (Pantalla Chica)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 1.0,
+                        child: Text('Normal (Defecto)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 1.25,
+                        child: Text('Grande (Fácil Lectura)'),
+                      ),
+                    ],
+                    onChanged: (double? value) {
+                      if (value != null) {
+                        provider.setFontSizeFactor(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +87,11 @@ class AdminDashboardScreen extends StatelessWidget {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Configuración Visual',
+            onPressed: () => _mostrarConfiguracionLetra(context),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Salir',
@@ -152,35 +227,56 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
-      elevation: 5,
+      elevation: isDark ? 4 : 2,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icono,
-              size: 50,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              valor,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icono,
+                      size: 32,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    valor,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 5),
-            Text(
-              titulo,
-              style: const TextStyle(
-                fontSize: 18,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

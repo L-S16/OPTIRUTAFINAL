@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import '../../utils/geocoding_helper.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -15,58 +17,14 @@ class ReportesScreen extends StatefulWidget {
 
 class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   
   // Filtros para la pestaña de Reportes
   String _searchQuery = '';
   String _estadoFiltro = 'Todos';
   String _prioridadFiltro = 'Todos';
 
-  // Coordenadas base para ciudades comunes de la ruta de despacho (Guayaquil -> Quito)
-  LatLng _getLatLngFromDireccion(String direccion, String id) {
-    final dirLower = direccion.toLowerCase();
-    LatLng base;
-    if (dirLower.contains('quito')) {
-      base = const LatLng(-0.1807, -78.4678);
-    } else if (dirLower.contains('latacunga')) {
-      base = const LatLng(-0.9316, -78.6155);
-    } else if (dirLower.contains('ambato')) {
-      base = const LatLng(-1.2491, -78.6167);
-    } else if (dirLower.contains('guayaquil')) {
-      base = const LatLng(-2.1708, -79.9224);
-    } else if (dirLower.contains('sangolqui') || dirLower.contains('sangolquí')) {
-      base = const LatLng(-0.3323, -78.4419);
-    } else if (dirLower.contains('aloag') || dirLower.contains('alóag')) {
-      base = const LatLng(-0.4677, -78.5835);
-    } else {
-      // Centrado en Ambato como punto central de la ruta
-      base = const LatLng(-1.2491, -78.6167);
-    }
 
-    // Aplicar dispersión (jitter) usando el hash del ID para evitar solapamientos exactos
-    final double latOffset = ((id.hashCode & 0xFF) - 128) * 0.0003;
-    final double lngOffset = (((id.hashCode >> 8) & 0xFF) - 128) * 0.0003;
-    return LatLng(base.latitude + latOffset, base.longitude + lngOffset);
-  }
-
-  double _getMarkerHue(String estado) {
-    switch (estado) {
-      case 'Entregado':
-        return BitmapDescriptor.hueGreen;
-      case 'En Ruta':
-        return BitmapDescriptor.hueAzure;
-      case 'Asignado':
-        return BitmapDescriptor.hueYellow;
-      case 'Pendiente':
-      case 'Reprogramado':
-        return BitmapDescriptor.hueOrange;
-      case 'Cancelada':
-      case 'Cancelado':
-        return BitmapDescriptor.hueRed;
-      default:
-        return BitmapDescriptor.hueRed;
-    }
-  }
 
   Color _getEstadoColor(String estado) {
     switch (estado) {
@@ -93,7 +51,6 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
   @override
   void dispose() {
     _tabController.dispose();
-    _mapController?.dispose();
     super.dispose();
   }
 
@@ -425,7 +382,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
 
   Widget _buildMapaMonitoreo(List<QueryDocumentSnapshot> pedidos) {
     // Generar marcadores para los pedidos activos en ruta o entregados
-    final Set<Marker> markers = {};
+    final List<Marker> markers = [];
     
     for (var doc in pedidos) {
       final data = doc.data() as Map<String, dynamic>;
@@ -433,18 +390,21 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
       final cliente = data['cliente'] ?? 'Cliente';
       final direccion = data['direccion'] ?? '';
       final estado = data['estado'] ?? 'Pendiente';
-      final cajas = data['numeroCajas'] ?? 0;
 
-      final latLng = _getLatLngFromDireccion(direccion, id);
+      final latLng = GeocodingHelper.getLatLngFromDireccion(direccion, id);
 
       markers.add(
         Marker(
-          markerId: MarkerId(id),
-          position: latLng,
-          icon: BitmapDescriptor.defaultMarkerWithHue(_getMarkerHue(estado)),
-          infoWindow: InfoWindow(
-            title: '$id - $cliente',
-            snippet: 'Estado: $estado | Cajas: $cajas\nDir: $direccion',
+          point: latLng,
+          width: 50,
+          height: 50,
+          child: Tooltip(
+            message: '$id - $cliente\nEstado: $estado\n$direccion',
+            child: Icon(
+              Icons.location_on,
+              color: _getEstadoColor(estado),
+              size: 32,
+            ),
           ),
         ),
       );
@@ -452,15 +412,21 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
 
     return Stack(
       children: [
-        GoogleMap(
-          initialCameraPosition: const CameraPosition(
-            target: LatLng(-1.2491, -78.6167), // Centrado en Ambato como punto intermedio del país
-            zoom: 7.5,
+        FlutterMap(
+          mapController: _mapController,
+          options: const MapOptions(
+            initialCenter: LatLng(-1.2491, -78.6167), // Centrado en Ambato como punto intermedio del país
+            initialZoom: 7.5,
           ),
-          onMapCreated: (controller) => _mapController = controller,
-          markers: markers,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: true,
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.optiruta.final',
+            ),
+            MarkerLayer(
+              markers: markers,
+            ),
+          ],
         ),
         // Leyenda del mapa flotante
         Positioned(

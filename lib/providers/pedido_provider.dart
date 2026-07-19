@@ -4,8 +4,22 @@ import '../models/pedido.dart';
 
 class PedidoProvider with ChangeNotifier {
   final List<Pedido> _pedidos = [];
+  bool _isDarkFont = true; // true for dark text (Light Theme), false for white text (Dark Theme)
+  double _fontSizeFactor = 1.0; // 1.0 is default size
 
   List<Pedido> get pedidos => [..._pedidos];
+  bool get isDarkFont => _isDarkFont;
+  double get fontSizeFactor => _fontSizeFactor;
+
+  void setFontColor(bool isDark) {
+    _isDarkFont = isDark;
+    notifyListeners();
+  }
+
+  void setFontSizeFactor(double factor) {
+    _fontSizeFactor = factor;
+    notifyListeners();
+  }
 
   PedidoProvider() {
     _cargarPedidos();
@@ -27,41 +41,26 @@ class PedidoProvider with ChangeNotifier {
   }
 
   Future<void> registrarPedido(Pedido pedido) async {
-    // Intentar guardar en Firestore primero. Si falla, el error se propaga.
+    // Guardar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(pedido.id)
         .set(pedido.toMap());
-    
-    // Guardar localmente
-    _pedidos.add(pedido);
-    notifyListeners();
   }
 
   Future<void> actualizarPedido(Pedido pedido) async {
-    // Intentar guardar en Firestore primero. Si falla, el error se propaga.
+    // Guardar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(pedido.id)
         .set(pedido.toMap());
-
-    // Actualizar localmente
-    final index = _pedidos.indexWhere((p) => p.id == pedido.id);
-    if (index != -1) {
-      _pedidos[index] = pedido;
-      notifyListeners();
-    }
   }
 
   Future<void> eliminarPedido(String id) async {
-    // Intentar eliminar en Firestore primero. Si falla, el error se propaga.
+    // Eliminar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(id)
         .delete();
-
-    // Eliminar localmente
-    _pedidos.removeWhere((p) => p.id == id);
-    notifyListeners();
   }
 }

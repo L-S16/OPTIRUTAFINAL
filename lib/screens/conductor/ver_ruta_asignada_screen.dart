@@ -161,6 +161,10 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
   Widget build(BuildContext context) {
     final numRuta = widget.routeData['numeroRuta'] ?? 'Desconocida';
     final destino = widget.routeData['destino'] ?? 'Desconocido';
+    final cliente = widget.routeData['cliente'] ?? 'No especificado';
+    final telefono = widget.routeData['telefono'] ?? '';
+    final detalle = widget.routeData['detalle'] ?? 'Sin detalles adicionales';
+    final cajas = widget.routeData['numeroCajas'] ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -212,6 +216,50 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                   title: const Text('Destino'),
                   subtitle: Text(destino, style: const TextStyle(fontSize: 16)),
                   contentPadding: EdgeInsets.zero,
+                ),
+                const Divider(height: 32, thickness: 1),
+                const Text(
+                  'Datos del Pedido',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.person, color: Colors.teal),
+                  title: const Text('Cliente'),
+                  subtitle: Text(cliente, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  contentPadding: EdgeInsets.zero,
+                ),
+                if (telefono.toString().isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.phone, color: Colors.green),
+                    title: const Text('Teléfono'),
+                    subtitle: Text(telefono.toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                    contentPadding: EdgeInsets.zero,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.phone_in_talk, color: Colors.green),
+                      onPressed: () async {
+                        final Uri launchUri = Uri(
+                          scheme: 'tel',
+                          path: telefono.toString(),
+                        );
+                        if (await canLaunchUrl(launchUri)) {
+                          await launchUrl(launchUri);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('No se pudo realizar la llamada')),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.receipt_long, color: Colors.orange),
+                  title: const Text('Detalle del Pedido'),
+                  subtitle: Text('$detalle\nCajas a entregar: $cajas', style: const TextStyle(fontSize: 15)),
+                  contentPadding: EdgeInsets.zero,
+                  isThreeLine: true,
                 ),
                 const SizedBox(height: 24),
                 

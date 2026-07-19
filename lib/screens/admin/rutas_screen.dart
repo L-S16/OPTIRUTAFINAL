@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'mapa_ruta_admin_screen.dart';
 
 class RutasScreen extends StatelessWidget {
   const RutasScreen({super.key});
@@ -269,6 +270,22 @@ class RutasScreen extends StatelessWidget {
                         mainAxisAlignment:
                             MainAxisAlignment.end,
                         children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MapaRutaAdminScreen(
+                                    rutaId: documento.id,
+                                    pedidosIds: pedidos,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.map),
+                            label: const Text('Ver Mapa'),
+                          ),
+                          const SizedBox(width: 10),
                           TextButton.icon(
                             onPressed: rutaCancelada
                                 ? null

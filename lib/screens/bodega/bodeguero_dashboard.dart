@@ -78,19 +78,25 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
     required IconData icon,
     required ValueChanged<String?> onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
           icon: const Icon(Icons.arrow_drop_down, size: 20),
-          style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w500),
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          style: TextStyle(
+            fontSize: 11,
+            color: isDark ? Colors.white70 : Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
           items: items.map((String item) {
             return DropdownMenuItem<String>(
               value: item,
@@ -145,19 +151,88 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
     );
   }
 
+  void _mostrarConfiguracionLetra(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Consumer<PedidoProvider>(
+          builder: (context, provider, child) {
+            return AlertDialog(
+              title: const Text('Configuración Visual'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Configura el estilo de letra y tema de la aplicación:'),
+                  const SizedBox(height: 15),
+                  SwitchListTile(
+                    title: const Text('Tema Oscuro (Letra Blanca)'),
+                    value: !provider.isDarkFont,
+                    onChanged: (value) {
+                      provider.setFontColor(!value);
+                    },
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Tamaño de Letra:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<double>(
+                    initialValue: provider.fontSizeFactor,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 0.85,
+                        child: Text('Pequeño (Pantalla Chica)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 1.0,
+                        child: Text('Normal (Defecto)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 1.25,
+                        child: Text('Grande (Fácil Lectura)'),
+                      ),
+                    ],
+                    onChanged: (double? value) {
+                      if (value != null) {
+                        provider.setFontSizeFactor(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text(
           'Dashboard Bodeguero',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.blueAccent[700],
-        elevation: 2,
-        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Configuración Visual',
+            onPressed: () => _mostrarConfiguracionLetra(context),
+          ),
           IconButton(
             icon: const Icon(Icons.playlist_add_check),
             tooltip: 'Checklist de Carga',
@@ -222,7 +297,7 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 hintText: 'Buscar por ID o Cliente...',
-                prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+                prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, color: Colors.grey),
@@ -231,21 +306,7 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                         }),
                       )
                     : null,
-                filled: true,
-                fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
-                ),
               ),
             ),
           ),

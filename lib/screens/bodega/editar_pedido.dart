@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/pedido.dart';
 import '../../providers/pedido_provider.dart';
+import '../../utils/geocoding_helper.dart';
 
 class EditarPedidoScreen extends StatefulWidget {
   final Pedido pedido;
@@ -16,9 +17,12 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _clienteController;
   late TextEditingController _direccionController;
+  late TextEditingController _telefonoController;
+  late TextEditingController _detalleController;
   late TextEditingController _cajasController;
   late String _prioridadSeleccionada;
   late String _estadoSeleccionada;
+  late String _zonaDetectada;
   bool _isLoading = false;
 
   final List<String> _prioridades = ['Alta', 'Media', 'Baja'];
@@ -29,15 +33,31 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
     super.initState();
     _clienteController = TextEditingController(text: widget.pedido.cliente);
     _direccionController = TextEditingController(text: widget.pedido.direccion);
+    _telefonoController = TextEditingController(text: widget.pedido.telefono ?? '');
+    _detalleController = TextEditingController(text: widget.pedido.detalle ?? '');
     _cajasController = TextEditingController(text: widget.pedido.numeroCajas.toString());
     _prioridadSeleccionada = widget.pedido.prioridad;
     _estadoSeleccionada = widget.pedido.estado;
+    _zonaDetectada = widget.pedido.zona ?? GeocodingHelper.clasificarZonaAutomatica(widget.pedido.direccion);
+    _direccionController.addListener(_onDireccionChanged);
+  }
+
+  void _onDireccionChanged() {
+    final newZona = GeocodingHelper.clasificarZonaAutomatica(_direccionController.text);
+    if (newZona != _zonaDetectada) {
+      setState(() {
+        _zonaDetectada = newZona;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _direccionController.removeListener(_onDireccionChanged);
     _clienteController.dispose();
     _direccionController.dispose();
+    _telefonoController.dispose();
+    _detalleController.dispose();
     _cajasController.dispose();
     super.dispose();
   }
@@ -51,6 +71,8 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
 
     final String cliente = _clienteController.text.trim();
     final String direccion = _direccionController.text.trim();
+    final String telefono = _telefonoController.text.trim();
+    final String detalle = _detalleController.text.trim();
     final int numeroCajas = int.parse(_cajasController.text.trim());
 
     final pedidoActualizado = Pedido(
@@ -60,7 +82,9 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
       prioridad: _prioridadSeleccionada,
       estado: _estadoSeleccionada,
       numeroCajas: numeroCajas,
-      zona: widget.pedido.zona, // Preservar la zona
+      zona: _zonaDetectada,
+      telefono: telefono.isNotEmpty ? telefono : null,
+      detalle: detalle.isNotEmpty ? detalle : null,
     );
 
     try {
@@ -236,8 +260,7 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // DIRECCION
+                           // DIRECCION
                           TextFormField(
                             controller: _direccionController,
                             decoration: InputDecoration(
@@ -257,6 +280,45 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
                               }
                               return null;
                             },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.public, size: 16, color: Colors.blueAccent),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Zona asignada automáticamente: ',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                                Text(
+                                  _zonaDetectada,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // TELEFONO
+                          TextFormField(
+                            controller: _telefonoController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Teléfono del Cliente',
+                              prefixIcon: const Icon(Icons.phone, color: Colors.blueAccent),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
 
@@ -340,6 +402,25 @@ class _EditarPedidoScreenState extends State<EditarPedidoScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // DETALLE DEL PEDIDO
+                          TextFormField(
+                            controller: _detalleController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              labelText: 'Detalles del Pedido',
+                              alignLabelWithHint: true,
+                              prefixIcon: const Icon(Icons.receipt_long, color: Colors.blueAccent),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
 

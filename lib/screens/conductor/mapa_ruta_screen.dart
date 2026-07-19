@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
 class MapaRutaScreen extends StatefulWidget {
   const MapaRutaScreen({super.key});
@@ -12,19 +12,15 @@ class MapaRutaScreen extends StatefulWidget {
 }
 
 class _MapaRutaScreenState extends State<MapaRutaScreen> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   Position? _currentPosition;
   bool _isLoading = true;
   StreamSubscription<Position>? _positionStreamSubscription;
 
-  // IMPORTANTE: Debes colocar tu API Key de Google Maps aquí para que se dibuje la ruta
-  final String _googleMapsApiKey = "TU_API_KEY_AQUI";
-
-  // Coordenadas fijas
+  // Coordenadas fijas de destino
   final LatLng _destinoLatacunga = const LatLng(-0.9322, -78.6155);
 
-  final Set<Polyline> _polylines = {};
-  final List<LatLng> _polylineCoordinates = [];
+  final List<Polyline> _polylines = [];
 
   @override
   void initState() {
@@ -56,12 +52,11 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
         }
       }
 
-      // Obtener posición inicial PRIMERO con un timeout
+      // Obtener posición inicial
       _currentPosition = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       ).timeout(const Duration(seconds: 10), onTimeout: () {
         debugPrint("Timeout obteniendo ubicación actual.");
-        // Si falla, usamos unas coordenadas por defecto cerca de Ambato
         return Position(
           longitude: -78.6167,
           latitude: -1.2491,
@@ -76,68 +71,28 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
         );
       });
 
-      // Una vez tenemos la posición actual, obtenemos la ruta hacia Latacunga
-      await _getPolyline();
+      _dibujarRutaDirecta();
     } catch (e) {
       debugPrint("Error inicializando mapa: $e");
     } finally {
       setState(() {
         _isLoading = false;
       });
-      // Iniciar el seguimiento en vivo independientemente
       _startLocationTracking();
     }
   }
 
-  Future<void> _getPolyline() async {
+  void _dibujarRutaDirecta() {
     if (_currentPosition == null) return;
-    
-    LatLng origenActual = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
-    PolylinePoints polylinePoints = PolylinePoints(apiKey: _googleMapsApiKey);
+    final LatLng origenActual = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
 
-    try {
-      // ignore: deprecated_member_use
-      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-        // ignore: deprecated_member_use
-        request: PolylineRequest(
-          origin: PointLatLng(origenActual.latitude, origenActual.longitude),
-          destination: PointLatLng(_destinoLatacunga.latitude, _destinoLatacunga.longitude),
-          mode: TravelMode.driving,
-        ),
-      );
-
-      if (result.points.isNotEmpty) {
-        for (var point in result.points) {
-          _polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-        }
-
-        setState(() {
-          _polylines.add(
-            Polyline(
-              polylineId: const PolylineId('ruta_conductor'),
-              color: Colors.blue,
-              points: _polylineCoordinates,
-              width: 5,
-            ),
-          );
-        });
-        return; // Salir si tuvo éxito
-      } else {
-        debugPrint("Error obteniendo ruta: ${result.errorMessage}");
-      }
-    } catch (e) {
-      debugPrint("Excepción al obtener polyline: $e");
-    }
-
-    // Si falla (por excepción o falta de API KEY), dibujamos una línea recta temporalmente
     setState(() {
+      _polylines.clear();
       _polylines.add(
         Polyline(
-          polylineId: const PolylineId('ruta_directa'),
-          color: Colors.blue,
           points: [origenActual, _destinoLatacunga],
-          width: 5,
-          patterns: [PatternItem.dash(20), PatternItem.gap(10)], // Línea punteada
+          color: Colors.blueAccent,
+          strokeWidth: 5,
         ),
       );
     });
@@ -146,7 +101,7 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
   void _startLocationTracking() {
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Actualizar cada 10 metros
+      distanceFilter: 10,
     );
 
     _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
@@ -154,17 +109,13 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
         if (position != null) {
           setState(() {
             _currentPosition = position;
+            _dibujarRutaDirecta();
           });
 
           // Mover la cámara a la nueva posición automáticamente
-          _mapController?.animateCamera(
-            CameraUpdate.newCameraPosition(
-              CameraPosition(
-                target: LatLng(position.latitude, position.longitude),
-                zoom: 16.0,
-                tilt: 45.0, // Perspectiva 3D tipo navegación
-              ),
-            ),
+          _mapController.move(
+            LatLng(position.latitude, position.longitude),
+            16.0,
           );
         }
       },
@@ -178,49 +129,67 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final LatLng initialCenter = _currentPosition != null
+        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+        : _destinoLatacunga;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ruta en curso'),
-        backgroundColor: Colors.green,
+        title: const Text('Ruta en curso', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.green[700],
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _currentPosition != null 
-                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude) 
-                        : _destinoLatacunga,
-                    zoom: 14,
+                // Vista de Flutter Map (OpenStreetMap)
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: initialCenter,
+                    initialZoom: 14.0,
                   ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  zoomControlsEnabled: false,
-                  onMapCreated: (GoogleMapController controller) {
-                    _mapController = controller;
-                    // Centramos la cámara al inicio en la posición del conductor
-                    if (_currentPosition != null) {
-                      controller.animateCamera(CameraUpdate.newLatLngZoom(
-                          LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 16.0));
-                    }
-                  },
-                  markers: {
-                    if (_currentPosition != null)
-                      Marker(
-                        markerId: const MarkerId('origen'),
-                        position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                        infoWindow: const InfoWindow(title: 'Tú (Origen)'),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                      ),
-                    Marker(
-                      markerId: const MarkerId('destino'),
-                      position: _destinoLatacunga,
-                      infoWindow: const InfoWindow(title: 'Destino: Latacunga'),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.optiruta.final',
                     ),
-                  },
-                  polylines: _polylines,
+                    PolylineLayer(
+                      polylines: _polylines,
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        if (_currentPosition != null)
+                          Marker(
+                            point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                            width: 60,
+                            height: 60,
+                            child: const Tooltip(
+                              message: 'Tú (Origen)',
+                              child: Icon(
+                                Icons.my_location,
+                                color: Colors.blue,
+                                size: 30,
+                              ),
+                            ),
+                          ),
+                        Marker(
+                          point: _destinoLatacunga,
+                          width: 60,
+                          height: 60,
+                          child: const Tooltip(
+                            message: 'Destino: Latacunga',
+                            child: Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 36,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 // Panel flotante de información
                 Positioned(
@@ -237,6 +206,7 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: const [
                               Text('Navegando hacia', style: TextStyle(color: Colors.grey)),
                               Text('Latacunga', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -247,13 +217,13 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                             mini: true,
                             onPressed: () {
                               if (_currentPosition != null) {
-                                _mapController?.animateCamera(
-                                  CameraUpdate.newLatLngZoom(
-                                      LatLng(_currentPosition!.latitude, _currentPosition!.longitude), 18.0),
+                                _mapController.move(
+                                  LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                                  17.0,
                                 );
                               }
                             },
-                            child: const Icon(Icons.my_location),
+                            child: const Icon(Icons.my_location, color: Colors.white),
                           )
                         ],
                       ),
