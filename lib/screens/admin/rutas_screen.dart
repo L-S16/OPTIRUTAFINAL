@@ -9,86 +9,134 @@ class RutasScreen extends StatelessWidget {
     BuildContext context,
     String rutaId,
     String conductorActual,
+    List<String> pedidosIds,
   ) async {
-    final controller = TextEditingController(text: conductorActual);
+    try {
+      final conductoresSnapshot = await FirebaseFirestore.instance
+          .collection('conductores')
+          .get();
 
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Reasignar conductor'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'ID del nuevo conductor',
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final nuevoConductor = controller.text.trim();
+      final List<Map<String, String>> conductoresList = [];
+      for (var doc in conductoresSnapshot.docs) {
+        final data = doc.data();
+        final id = doc.id;
+        final nombre = data['nombre'] ?? '';
+        final apellido = data['apellido'] ?? '';
+        final nombreCompleto = '$nombre $apellido'.trim();
+        if (nombreCompleto.isNotEmpty) {
+          conductoresList.add({'id': id, 'nombre': nombreCompleto});
+        }
+      }
 
-                if (nuevoConductor.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Ingrese el ID del conductor',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('rutas')
-                      .doc(rutaId)
-                      .update({
-                    'conductorId': nuevoConductor,
-                    'fechaActualizacion':
-                        FieldValue.serverTimestamp(),
-                  });
-
-                  if (!context.mounted) return;
-
-                  Navigator.pop(dialogContext);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Conductor reasignado correctamente',
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  if (!context.mounted) return;
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Error al reasignar conductor: $e',
-                      ),
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.swap_horiz),
-              label: const Text('Reasignar'),
-            ),
-          ],
+      if (conductoresList.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay conductores registrados para asignar.')),
         );
-      },
-    );
+        return;
+      }
 
-    controller.dispose();
+      String? seleccionadoId;
+      for (var cond in conductoresList) {
+        if (cond['id'] == conductorActual || cond['nombre'] == conductorActual) {
+          seleccionadoId = cond['id'];
+          break;
+        }
+      }
+      seleccionadoId ??= conductoresList.first['id'];
+
+      if (!context.mounted) return;
+
+      await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          String? tempSelected = seleccionadoId;
+          return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                title: const Text('Reasignar Conductor'),
+                content: DropdownButtonFormField<String>(
+                  initialValue: tempSelected,
+                  decoration: const InputDecoration(
+                    labelText: 'Selecciona Conductor',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: conductoresList.map((cond) {
+                    return DropdownMenuItem<String>(
+                      value: cond['id'],
+                      child: Text(cond['nombre']!),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setStateDialog(() {
+                      tempSelected = val;
+                    });
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final nuevoConductorId = tempSelected;
+                      final nuevoConductorNombre = conductoresList
+                          .firstWhere((c) => c['id'] == nuevoConductorId)['nombre'];
+
+                      if (nuevoConductorId == null) return;
+
+                      try {
+                        final batch = FirebaseFirestore.instance.batch();
+
+                        batch.update(
+                          FirebaseFirestore.instance.collection('rutas').doc(rutaId),
+                          {
+                            'conductorId': nuevoConductorId,
+                            'nombreConductor': nuevoConductorNombre,
+                            'fechaActualizacion': FieldValue.serverTimestamp(),
+                          },
+                        );
+
+                        for (var pedId in pedidosIds) {
+                          batch.update(
+                            FirebaseFirestore.instance.collection('entregas').doc(pedId),
+                            {
+                              'conductorId': nuevoConductorId,
+                              'nombreConductor': nuevoConductorNombre,
+                            },
+                          );
+                        }
+
+                        await batch.commit();
+
+                        if (!context.mounted) return;
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Conductor reasignado correctamente')),
+                        );
+                      } catch (e) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error al reasignar: $e')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Reasignar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar conductores: $e')),
+      );
+    }
   }
 
   Future<void> _cancelarRuta(
@@ -290,11 +338,12 @@ class RutasScreen extends StatelessWidget {
                             onPressed: rutaCancelada
                                 ? null
                                 : () {
-                                    _reasignarConductor(
-                                      context,
-                                      documento.id,
-                                      conductorId,
-                                    );
+                                     _reasignarConductor(
+                                       context,
+                                       documento.id,
+                                       conductorId,
+                                       pedidos,
+                                     );
                                   },
                             icon: const Icon(Icons.swap_horiz),
                             label: const Text('Reasignar'),

@@ -44,6 +44,31 @@ class _LoginBodegueroScreenState extends State<LoginBodegueroScreen> {
     });
 
     try {
+      // 1. Verificar si el usuario está activo en Firestore
+      final userQuery = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('correo', isEqualTo: email)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        final userData = userQuery.docs.first.data();
+        final bool estado = userData['estado'] as bool? ?? true;
+        if (!estado) {
+          setState(() {
+            _isLoading = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Esta cuenta ha sido desactivada por el administrador.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,

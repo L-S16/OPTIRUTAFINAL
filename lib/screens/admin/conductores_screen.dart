@@ -11,6 +11,220 @@ class ConductoresScreen extends StatefulWidget {
 class _ConductoresScreenState extends State<ConductoresScreen> {
   String _searchQuery = '';
 
+  Future<void> _mostrarDialogoEditar(
+    BuildContext context,
+    String conductorId,
+    Map<String, dynamic> currentData,
+  ) async {
+    final nombreCtrl = TextEditingController(text: currentData['nombre'] ?? '');
+    final apellidoCtrl = TextEditingController(text: currentData['apellido'] ?? '');
+    final telefonoCtrl = TextEditingController(text: currentData['telefono'] ?? '');
+    final licenciaCtrl = TextEditingController(text: currentData['tipoLicencia'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Editar Conductor'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreCtrl,
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: apellidoCtrl,
+                  decoration: const InputDecoration(labelText: 'Apellido'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: telefonoCtrl,
+                  decoration: const InputDecoration(labelText: 'Teléfono'),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: licenciaCtrl,
+                  decoration: const InputDecoration(labelText: 'Tipo de Licencia'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final nombre = nombreCtrl.text.trim();
+                final apellido = apellidoCtrl.text.trim();
+                final telefono = telefonoCtrl.text.trim();
+                final licencia = licenciaCtrl.text.trim();
+
+                if (nombre.isEmpty || apellido.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nombre y Apellido son obligatorios')),
+                  );
+                  return;
+                }
+
+                try {
+                  // 1. Actualizar conductores
+                  await FirebaseFirestore.instance
+                      .collection('conductores')
+                      .doc(conductorId)
+                      .update({
+                    'nombre': nombre,
+                    'apellido': apellido,
+                    'telefono': telefono,
+                    'tipoLicencia': licencia,
+                  });
+
+                  // 2. Actualizar usuarios (por ID de documento)
+                  await FirebaseFirestore.instance
+                      .collection('usuarios')
+                      .doc(conductorId)
+                      .update({
+                    'nombre': '$nombre $apellido'.trim(),
+                  }).catchError((e) {
+                    // En caso de que el ID no coincida, buscar por correo
+                    final correo = currentData['correo'];
+                    if (correo != null) {
+                      FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .where('correo', isEqualTo: correo)
+                          .get()
+                          .then((q) {
+                        for (var doc in q.docs) {
+                          doc.reference.update({
+                            'nombre': '$nombre $apellido'.trim(),
+                          });
+                        }
+                      });
+                    }
+                  });
+
+                  if (!context.mounted) return;
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Conductor actualizado correctamente')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al actualizar: $e')),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    nombreCtrl.dispose();
+    apellidoCtrl.dispose();
+    telefonoCtrl.dispose();
+    licenciaCtrl.dispose();
+  }
+
+  Future<void> _toggleEstadoConductor(
+    BuildContext context,
+    String correo,
+    bool activo,
+  ) async {
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('correo', isEqualTo: correo)
+          .get();
+
+      if (query.docs.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('El usuario no está registrado en la lista de cuentas.')),
+        );
+        return;
+      }
+
+      for (var doc in query.docs) {
+        await doc.reference.update({'estado': !activo});
+      }
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            activo ? 'Conductor desactivado correctamente' : 'Conductor activado correctamente',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cambiar de estado: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmarEliminarConductor(
+    BuildContext context,
+    String conductorId,
+    String correo,
+  ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Eliminar Conductor'),
+          content: Text('¿Está seguro de que desea eliminar al conductor con correo $correo?\nEsta acción es irreversible.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      // 1. Eliminar de conductores
+      await FirebaseFirestore.instance.collection('conductores').doc(conductorId).delete();
+
+      // 2. Eliminar de usuarios
+      final query = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('correo', isEqualTo: correo)
+          .get();
+
+      for (var doc in query.docs) {
+        await doc.reference.delete();
+      }
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conductor eliminado correctamente')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar conductor: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,10 +232,8 @@ class _ConductoresScreenState extends State<ConductoresScreen> {
       appBar: AppBar(
         title: const Text(
           'Conductores',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.blueAccent[700],
-        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
       ),
       body: Column(
@@ -226,6 +438,51 @@ class _ConductoresScreenState extends State<ConductoresScreen> {
                                       fontSize: 10,
                                     ),
                                   ),
+                                ),
+                                const SizedBox(width: 8),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      _mostrarDialogoEditar(context, doc.id, data);
+                                    } else if (value == 'toggle') {
+                                      _toggleEstadoConductor(context, correo, activo);
+                                    } else if (value == 'delete') {
+                                      _confirmarEliminarConductor(context, doc.id, correo);
+                                    }
+                                  },
+                                  itemBuilder: (BuildContext context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.edit, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Editar Datos'),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'toggle',
+                                      child: Row(
+                                        children: [
+                                          Icon(activo ? Icons.block : Icons.check_circle_outline, size: 18),
+                                          SizedBox(width: 8),
+                                          Text(activo ? 'Desactivar' : 'Activar'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, color: Colors.red, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

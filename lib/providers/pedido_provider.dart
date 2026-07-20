@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pedido.dart';
 
 class PedidoProvider with ChangeNotifier {
@@ -11,18 +12,42 @@ class PedidoProvider with ChangeNotifier {
   bool get isDarkFont => _isDarkFont;
   double get fontSizeFactor => _fontSizeFactor;
 
-  void setFontColor(bool isDark) {
+  PedidoProvider() {
+    _cargarPreferencias();
+    _cargarPedidos();
+  }
+
+  Future<void> _cargarPreferencias() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _isDarkFont = prefs.getBool('isDarkFont') ?? true;
+      _fontSizeFactor = prefs.getDouble('fontSizeFactor') ?? 1.0;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error al cargar preferencias: $e");
+    }
+  }
+
+  Future<void> setFontColor(bool isDark) async {
     _isDarkFont = isDark;
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isDarkFont', isDark);
+    } catch (e) {
+      debugPrint("Error al guardar tema: $e");
+    }
   }
 
-  void setFontSizeFactor(double factor) {
+  Future<void> setFontSizeFactor(double factor) async {
     _fontSizeFactor = factor;
     notifyListeners();
-  }
-
-  PedidoProvider() {
-    _cargarPedidos();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('fontSizeFactor', factor);
+    } catch (e) {
+      debugPrint("Error al guardar escala tipográfica: $e");
+    }
   }
 
   void _cargarPedidos() {
@@ -41,7 +66,6 @@ class PedidoProvider with ChangeNotifier {
   }
 
   Future<void> registrarPedido(Pedido pedido) async {
-    // Guardar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(pedido.id)
@@ -49,7 +73,6 @@ class PedidoProvider with ChangeNotifier {
   }
 
   Future<void> actualizarPedido(Pedido pedido) async {
-    // Guardar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(pedido.id)
@@ -57,7 +80,6 @@ class PedidoProvider with ChangeNotifier {
   }
 
   Future<void> eliminarPedido(String id) async {
-    // Eliminar en Firestore. El Stream listener de _cargarPedidos actualizará la lista local de forma segura y en tiempo real.
     await FirebaseFirestore.instance
         .collection('pedidos')
         .doc(id)

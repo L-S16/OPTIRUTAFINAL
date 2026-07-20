@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MapaRutaScreen extends StatefulWidget {
   const MapaRutaScreen({super.key});
@@ -117,6 +119,18 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
             LatLng(position.latitude, position.longitude),
             16.0,
           );
+
+          // Subir a Firestore
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            FirebaseFirestore.instance.collection('conductores').doc(user.uid).update({
+              'latitud': position.latitude,
+              'longitud': position.longitude,
+              'ultimaActualizacion': FieldValue.serverTimestamp(),
+            }).catchError((e) {
+              debugPrint("Error al subir ubicación a Firestore: $e");
+            });
+          }
         }
       },
     );

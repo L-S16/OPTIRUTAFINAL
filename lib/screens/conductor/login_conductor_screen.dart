@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'conductor_dashboard.dart';
 import 'registro_conductor_screen.dart';
@@ -19,14 +20,43 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
   String _errorMessage = '';
 
   Future<void> _iniciarSesion() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Por favor, ingresa tu correo y contraseña.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
     try {
+      // 1. Verificar si el usuario está activo en Firestore
+      final userQuery = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('correo', isEqualTo: email)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        final userData = userQuery.docs.first.data();
+        final bool estado = userData['estado'] as bool? ?? true;
+        if (!estado) {
+          setState(() {
+            _errorMessage = 'Esta cuenta ha sido desactivada por el administrador.';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      // 2. Iniciar sesión en Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email,
+        password: password,
       );
       if (mounted) {
         Navigator.pushReplacement(

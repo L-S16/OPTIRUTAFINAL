@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -26,6 +27,9 @@ class _MapaRutaAdminScreenState extends State<MapaRutaAdminScreen> {
   final List<Marker> _markers = [];
   final List<Polyline> _polylines = [];
   final Map<String, LatLng> _pedidoCoords = {};
+  
+  StreamSubscription<DocumentSnapshot>? _conductorSubscription;
+  LatLng? _driverLocation;
 
   // Origen por defecto: Bodega Principal (Ambato)
   final LatLng _origenBodega = const LatLng(-1.2491, -78.6167);
@@ -34,6 +38,12 @@ class _MapaRutaAdminScreenState extends State<MapaRutaAdminScreen> {
   void initState() {
     super.initState();
     _cargarDetallesPedidos();
+  }
+
+  @override
+  void dispose() {
+    _conductorSubscription?.cancel();
+    super.dispose();
   }
 
   Color _getMarkerColor(String estado) {
@@ -71,6 +81,37 @@ class _MapaRutaAdminScreenState extends State<MapaRutaAdminScreen> {
         _prepararMapa();
         _isLoading = false;
       });
+
+      // Obtener el ID del conductor de la ruta y suscribirse a su posición
+      final routeDoc = await FirebaseFirestore.instance
+          .collection('rutas')
+          .doc(widget.rutaId)
+          .get();
+
+      if (routeDoc.exists && routeDoc.data() != null) {
+        final conductorId = routeDoc.data()?['conductorId'];
+        if (conductorId != null && conductorId != 'No asignado') {
+          _conductorSubscription = FirebaseFirestore.instance
+              .collection('conductores')
+              .doc(conductorId)
+              .snapshots()
+              .listen((snap) {
+            if (snap.exists && snap.data() != null) {
+              final data = snap.data() as Map<String, dynamic>;
+              final lat = data['latitud'] as double?;
+              final lng = data['longitud'] as double?;
+              if (lat != null && lng != null) {
+                if (mounted) {
+                  setState(() {
+                    _driverLocation = LatLng(lat, lng);
+                    _prepararMapa();
+                  });
+                }
+              }
+            }
+          });
+        }
+      }
 
       // Intentar geocodificar las paradas en segundo plano
       _geocodificarParadasBackground();
@@ -149,6 +190,28 @@ class _MapaRutaAdminScreenState extends State<MapaRutaAdminScreen> {
           points: rutaCoordenadas,
           color: Colors.blueAccent.shade700,
           strokeWidth: 5,
+        ),
+      );
+    }
+
+    // 4. Agregar marcador del Conductor (Seguimiento en Vivo)
+    if (_driverLocation != null) {
+      _markers.add(
+        Marker(
+          point: _driverLocation!,
+          width: 55,
+          height: 55,
+          child: const Tooltip(
+            message: 'Ubicación en Vivo del Conductor',
+            child: CircleAvatar(
+              backgroundColor: Colors.blueAccent,
+              child: Icon(
+                Icons.local_shipping,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
         ),
       );
     }
