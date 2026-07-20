@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'providers/pedido_provider.dart';
 import 'firebase_options.dart';
-import 'screens/admin/login_admin_screen.dart';
+import 'screens/welcome_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -160,7 +160,7 @@ class MyApp extends StatelessWidget {
           labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
         ),
       ),
-      home: const LoginAdminScreen(),
+      home: const WelcomeScreen(),
     );
   }
 }
