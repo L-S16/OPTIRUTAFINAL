@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../utils/geocoding_helper.dart';
@@ -848,6 +847,10 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
 
   Future<void> _reasignarRutaPedido(BuildContext context, String pedidoId) async {
     try {

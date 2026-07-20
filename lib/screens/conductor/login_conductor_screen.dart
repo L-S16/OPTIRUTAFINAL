@@ -54,9 +54,16 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
         final bool estado = userData['estado'] as bool? ?? true;
         if (!estado) {
           setState(() {
-            _errorMessage = 'Esta cuenta ha sido desactivada por el administrador.';
             _isLoading = false;
           });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Esta cuenta ha sido desactivada por el administrador.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
           return;
         }
       }
