@@ -74,6 +74,7 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
       telefono: telefono.isNotEmpty ? telefono : null,
       detalle: detalle.isNotEmpty ? detalle : null,
       zona: _zonaDetectada,
+      fechaCreacion: DateTime.now().toIso8601String(),
     );
 
     try {

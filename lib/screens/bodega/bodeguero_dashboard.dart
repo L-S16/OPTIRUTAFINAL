@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../models/pedido.dart';
 import '../../providers/pedido_provider.dart';
 import 'registrar_pedido.dart';
 import 'editar_pedido.dart';
@@ -26,6 +27,23 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
   final List<String> _estados = ['Todos', 'Pendiente', 'Asignado', 'En Ruta', 'Entregado'];
   final List<String> _prioridades = ['Todos', 'Alta', 'Media', 'Baja'];
   final List<String> _zonas = ['Todos', 'Norte', 'Sur', 'Este', 'Oeste', 'Centro', 'Sin Clasificar'];
+
+  bool _esReciente(dynamic p) {
+    DateTime? dt;
+    if (p.fechaCreacion != null && (p.fechaCreacion as String).isNotEmpty) {
+      dt = DateTime.tryParse(p.fechaCreacion as String);
+    }
+    if (dt == null && (p.id as String).startsWith('PED-')) {
+      final msStr = (p.id as String).replaceFirst('PED-', '');
+      final ms = int.tryParse(msStr);
+      if (ms != null) {
+        dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    }
+    if (dt == null) return false;
+    final diff = DateTime.now().difference(dt);
+    return diff.inHours < 24 && !diff.isNegative;
+  }
 
   Color _getPriorityColor(String priority) {
     switch (priority) {
@@ -219,6 +237,69 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
     );
   }
 
+  void _mostrarConfirmacionSalir(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.logout, color: Colors.redAccent),
+              SizedBox(width: 10),
+              Text(
+                'Confirmar Salida',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: const Text(
+            '¿Estás seguro de que deseas salir?',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  await FirebaseAuth.instance.signOut();
+                } catch (e) {
+                  debugPrint("Error signing out: $e");
+                }
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginAdminScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              child: const Text(
+                'Sí, Salir',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,14 +314,27 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
             tooltip: 'Configuración Visual',
             onPressed: () => _mostrarConfiguracionLetra(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.playlist_add_check),
-            tooltip: 'Checklist de Carga',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ConfirmarCargaScreen(),
+          Consumer<PedidoProvider>(
+            builder: (context, provider, child) {
+              final asignadosCount = provider.pedidos.where((p) => p.estado == 'Asignado').length;
+              return Badge(
+                label: Text(
+                  '$asignadosCount',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                isLabelVisible: asignadosCount > 0,
+                backgroundColor: Colors.redAccent,
+                child: IconButton(
+                  icon: const Icon(Icons.playlist_add_check),
+                  tooltip: 'Checklist de Carga ($asignadosCount pendientes)',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ConfirmarCargaScreen(),
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -272,19 +366,7 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Salir',
-            onPressed: () async {
-              try {
-                await FirebaseAuth.instance.signOut();
-              } catch (e) {
-                debugPrint("Error signing out: $e");
-              }
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginAdminScreen()),
-                  (route) => false,
-                );
-              }
-            },
+            onPressed: () => _mostrarConfirmacionSalir(context),
           ),
         ],
       ),
@@ -309,6 +391,71 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
               ),
             ),
+          ),
+          // Banner de Notificación Instantánea de Carga Pendiente
+          Consumer<PedidoProvider>(
+            builder: (context, provider, _) {
+              final asignadosCount = provider.pedidos.where((p) => p.estado == 'Asignado').length;
+              if (asignadosCount == 0) return const SizedBox.shrink();
+
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ConfirmarCargaScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange[800]!, Colors.amber[700]!],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.notifications_active, color: Colors.white, size: 26),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '🔔 ¡TIENES $asignadosCount PEDIDO${asignadosCount > 1 ? 'S' : ''} PENDIENTES DE CARGAR!',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Toca aquí para ir al Checklist y cargar las cajas al camión al instante.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
           // Fila de Filtros
           Padding(
@@ -410,7 +557,50 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                   return matchesSearch && matchesEstado && matchesPrioridad && matchesZona;
                 }).toList();
 
-                if (filteredPedidos.isEmpty) {
+                final pedidosRecientes = <Pedido>[];
+                final pedidosAntiguos = <Pedido>[];
+
+                for (var p in filteredPedidos) {
+                  if (_esReciente(p)) {
+                    pedidosRecientes.add(p);
+                  } else {
+                    pedidosAntiguos.add(p);
+                  }
+                }
+
+                int compareDesc(Pedido a, Pedido b) {
+                  if (a.fechaCreacion != null && b.fechaCreacion != null) {
+                    return b.fechaCreacion!.compareTo(a.fechaCreacion!);
+                  }
+                  return b.id.compareTo(a.id);
+                }
+
+                pedidosRecientes.sort(compareDesc);
+                pedidosAntiguos.sort(compareDesc);
+
+                final listItems = <dynamic>[];
+
+                if (pedidosRecientes.isNotEmpty) {
+                  listItems.add(_SectionHeaderData(
+                    title: 'Recientes',
+                    icon: Icons.access_time_filled,
+                    color: Colors.green[700]!,
+                    count: pedidosRecientes.length,
+                  ));
+                  listItems.addAll(pedidosRecientes);
+                }
+
+                if (pedidosAntiguos.isNotEmpty) {
+                  listItems.add(_SectionHeaderData(
+                    title: 'Antiguos',
+                    icon: Icons.history,
+                    color: Colors.blueGrey[700]!,
+                    count: pedidosAntiguos.length,
+                  ));
+                  listItems.addAll(pedidosAntiguos);
+                }
+
+                if (listItems.isEmpty) {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
@@ -446,10 +636,56 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  itemCount: filteredPedidos.length,
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 84),
+                  itemCount: listItems.length,
                   itemBuilder: (context, index) {
-                    final pedido = filteredPedidos[index];
+                    final item = listItems[index];
+
+                    if (item is _SectionHeaderData) {
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16.0, bottom: 10.0, left: 4.0, right: 4.0),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: item.color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(item.icon, size: 16, color: item.color),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              item.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: item.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${item.count}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: item.color,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final pedido = item as Pedido;
                     final priorityColor = _getPriorityColor(pedido.prioridad);
 
                     return Card(
@@ -698,6 +934,62 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                         ),
                                       ],
                                     ),
+                                     if (pedido.estado == 'Asignado') ...[
+                                       const SizedBox(height: 14),
+                                       Container(
+                                         width: double.infinity,
+                                         decoration: BoxDecoration(
+                                           gradient: LinearGradient(
+                                             colors: [Colors.orange[800]!, Colors.amber[700]!],
+                                           ),
+                                           borderRadius: BorderRadius.circular(12),
+                                           boxShadow: [
+                                             BoxShadow(
+                                               color: Colors.orange.withValues(alpha: 0.3),
+                                               blurRadius: 6,
+                                               offset: const Offset(0, 3),
+                                             ),
+                                           ],
+                                         ),
+                                         child: ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => const ConfirmarCargaScreen(),
+                                              ),
+                                            );
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.inventory_2, size: 20, color: Colors.white),
+                                              SizedBox(width: 8),
+                                              Flexible(
+                                                child: Text(
+                                                  'Cargar Cajas Ahora',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                    color: Colors.white,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -731,5 +1023,19 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
       ),
     );
   }
+}
+
+class _SectionHeaderData {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final int count;
+
+  _SectionHeaderData({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.count,
+  });
 }
 

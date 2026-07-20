@@ -8,6 +8,7 @@ class Pedido {
   String? zona;
   String? telefono;
   String? detalle;
+  String? fechaCreacion;
 
   Pedido({
     required this.id,
@@ -19,6 +20,7 @@ class Pedido {
     this.zona,
     this.telefono,
     this.detalle,
+    this.fechaCreacion,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class Pedido {
       'zona': zona,
       'telefono': telefono,
       'detalle': detalle,
+      'fechaCreacion': fechaCreacion ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -46,6 +49,7 @@ class Pedido {
       zona: map['zona'],
       telefono: map['telefono'],
       detalle: map['detalle'],
+      fechaCreacion: map['fechaCreacion'],
     );
   }
 }
