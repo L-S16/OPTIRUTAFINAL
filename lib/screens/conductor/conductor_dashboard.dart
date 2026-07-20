@@ -7,19 +7,6 @@ import 'historial_entregas_screen.dart';
 class ConductorDashboard extends StatelessWidget {
   const ConductorDashboard({super.key});
 
-  void _crearRutaDePrueba() {
-    final user = FirebaseAuth.instance.currentUser;
-    FirebaseFirestore.instance.collection('entregas').add({
-      'numeroRuta': '001',
-      'origen': 'Ubicación Actual',
-      'destino': 'Latacunga',
-      'estado': 'Pendiente',
-      'observaciones': '',
-      'firmaUrl': null,
-      'fechaCreacion': FieldValue.serverTimestamp(),
-      'conductorId': user?.uid, // <-- Guardamos el ID del conductor
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +16,7 @@ class ConductorDashboard extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Conductor'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -39,7 +27,17 @@ class ConductorDashboard extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const HistorialEntregasScreen()),
               );
             },
-          )
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+          ),
         ],
       ),
       body: Column(
@@ -58,7 +56,7 @@ class ConductorDashboard extends StatelessWidget {
               stream: FirebaseFirestore.instance
                   .collection('entregas')
                   .where('conductorId', isEqualTo: user?.uid)
-                  .where('estado', whereIn: ['Pendiente', 'No entregado', 'Reprogramado'])
+                  .where('estado', whereIn: ['Pendiente', 'Reprogramado', 'En Ruta'])
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -111,11 +109,7 @@ class ConductorDashboard extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _crearRutaDePrueba,
-        tooltip: 'Crear Ruta de Prueba',
-        child: const Icon(Icons.add),
-      ),
+
     );
   }
 }

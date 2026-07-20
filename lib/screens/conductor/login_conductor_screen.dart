@@ -17,23 +17,31 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  String _errorMessage = '';
+
 
   Future<void> _iniciarSesion() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Por favor, ingresa tu correo y contraseña.';
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor, ingresa tu correo y contraseña.',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
     });
+
     try {
       // 1. Verificar si el usuario está activo en Firestore
       final userQuery = await FirebaseFirestore.instance
@@ -65,17 +73,37 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          _errorMessage = 'Correo/contraseña incorrectos';
-        } else {
-          _errorMessage = 'Error al iniciar sesión: ${e.code}';
-        }
-      });
+      String errorMsg = 'Error al iniciar sesión';
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMsg = 'Correo o contraseña incorrectos.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMsg,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Ocurrió un error inesperado: $e';
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ocurrió un error inesperado: $e',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -202,14 +230,7 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      if (_errorMessage.isNotEmpty) ...[
-                        Text(
-                          _errorMessage,
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 15),
-                      ],
+
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,

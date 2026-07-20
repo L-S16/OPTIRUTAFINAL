@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../utils/geocoding_helper.dart';
+import 'mapa_ruta_screen.dart';
 
 class VerRutaAsignadaScreen extends StatefulWidget {
   final String routeId;
@@ -23,6 +25,7 @@ class VerRutaAsignadaScreen extends StatefulWidget {
 class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
   late String _estadoEntrega;
   late TextEditingController _observacionesController;
+  final TextEditingController _cajasDevueltasController = TextEditingController(text: '0');
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 3,
     penColor: Colors.black,
@@ -43,6 +46,7 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
   @override
   void dispose() {
     _observacionesController.dispose();
+    _cajasDevueltasController.dispose();
     _signatureController.dispose();
     super.dispose();
   }
@@ -61,23 +65,19 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     }
   }
 
-  Future<void> _abrirGoogleMaps() async {
-    // Coordenadas simuladas para Latacunga (podrían venir de widget.routeData)
-    const double lat = -0.932222;
-    const double lng = -78.615833;
-    final Uri url = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+  Future<void> _abrirMapaInterno() async {
+    final destinoString = widget.routeData['direccion'] ?? widget.routeData['destino'] ?? 'Desconocido';
+    final id = widget.routeData['pedidoId'] ?? widget.routeData['numeroRuta'] ?? '0';
     
-    if (!await launchUrl(url)) {
-      // Intento web si falla la app nativa
-      final Uri webUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
-      if (!await launchUrl(webUrl)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo abrir Google Maps')),
-          );
-        }
-      }
-    }
+    final latLng = GeocodingHelper.getLatLngFromDireccion(destinoString, id);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => MapaRutaScreen(
+        destino: latLng,
+        nombreDestino: destinoString,
+      )),
+    );
   }
 
   Future<void> _tomarFoto() async {
@@ -103,6 +103,22 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
   }
 
   Future<void> _guardarCambios() async {
+    if (_estadoEntrega == 'No entregado') {
+      if (_observacionesController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debe ingresar una observación obligatoria')),
+        );
+        return;
+      }
+      final cajas = int.tryParse(_cajasDevueltasController.text);
+      if (cajas == null || cajas < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ingrese un número válido de cajas devueltas')),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
     try {
       String? firmaBase64 = widget.routeData['firmaBase64'];
@@ -121,8 +137,10 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
           .update({
         'estado': _estadoEntrega,
         'observaciones': _observacionesController.text,
-        if (firmaBase64 != null) 'firmaBase64': firmaBase64,
-        if (_fotoBase64 != null) 'fotoBase64': _fotoBase64,
+        'fechaActualizacion': FieldValue.serverTimestamp(),
+        if (_estadoEntrega == 'No entregado') 'cajasDevueltas': int.tryParse(_cajasDevueltasController.text) ?? 0,
+        if (firmaBase64 != null && _estadoEntrega != 'No entregado') 'firmaBase64': firmaBase64,
+        if (_fotoBase64 != null && _estadoEntrega != 'No entregado') 'fotoBase64': _fotoBase64,
       });
 
       // Sincronizar el estado del pedido en la colección 'pedidos'
@@ -297,11 +315,31 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                 TextField(
                   controller: _observacionesController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Escriba cualquier detalle relevante...',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    errorText: _estadoEntrega == 'No entregado' && _observacionesController.text.trim().isEmpty 
+                        ? 'Requerido para el estado No entregado' 
+                        : null,
                   ),
+                  onChanged: (val) {
+                    if (_estadoEntrega == 'No entregado') setState(() {});
+                  },
                 ),
+
+                if (_estadoEntrega == 'No entregado') ...[
+                  const SizedBox(height: 16),
+                  const Text('Número de cajas devueltas', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _cajasDevueltasController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: 'Cantidad',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
 
                 if (_estadoEntrega == 'Entregado') ...[
                   const SizedBox(height: 24),
@@ -366,9 +404,9 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _abrirGoogleMaps,
+                    onPressed: _abrirMapaInterno,
                     icon: const Icon(Icons.map),
-                    label: const Text('Navegar en Google Maps', style: TextStyle(fontSize: 16)),
+                    label: const Text('Navegar a la Ruta', style: TextStyle(fontSize: 16)),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.blue,

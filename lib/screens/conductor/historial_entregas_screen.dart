@@ -3,22 +3,51 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class HistorialEntregasScreen extends StatelessWidget {
+class HistorialEntregasScreen extends StatefulWidget {
   const HistorialEntregasScreen({super.key});
+
+  @override
+  State<HistorialEntregasScreen> createState() => _HistorialEntregasScreenState();
+}
+
+class _HistorialEntregasScreenState extends State<HistorialEntregasScreen> {
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
+    final dateString = "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial de Entregas'),
+        title: Text('Historial - $dateString'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Buscar por fecha',
+            onPressed: () => _selectDate(context),
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('entregas')
             .where('conductorId', isEqualTo: currentUser?.uid)
-            .where('estado', isEqualTo: 'Entregado')
+            .where('estado', whereIn: ['Entregado', 'No entregado'])
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -29,10 +58,22 @@ class HistorialEntregasScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          final allDocs = snapshot.data?.docs ?? [];
+          
+          final docs = allDocs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            // Usar fechaActualizacion si existe, de lo contrario fechaCreacion
+            final timestamp = data['fechaActualizacion'] as Timestamp? ?? data['fechaCreacion'] as Timestamp?;
+            if (timestamp == null) return false;
+            // Convertir la fecha local del dispositivo comparada con el timestamp
+            final date = timestamp.toDate().toLocal();
+            return date.year == _selectedDate.year &&
+                   date.month == _selectedDate.month &&
+                   date.day == _selectedDate.day;
+          }).toList();
 
           if (docs.isEmpty) {
-            return const Center(child: Text('No hay entregas completadas.'));
+            return const Center(child: Text('No hay entregas completadas en esta fecha.'));
           }
 
           return ListView.builder(
@@ -44,6 +85,8 @@ class HistorialEntregasScreen extends StatelessWidget {
               final observaciones = data['observaciones'] ?? '';
               final firmaBase64 = data['firmaBase64'];
               final fotoBase64 = data['fotoBase64'];
+              final estado = data['estado'] ?? 'Entregado';
+              final cajasDevueltas = data['cajasDevueltas'] ?? 0;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -60,15 +103,19 @@ class HistorialEntregasScreen extends StatelessWidget {
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                          const Chip(
-                            label: Text('Entregado', style: TextStyle(color: Colors.white)),
-                            backgroundColor: Colors.green,
+                          Chip(
+                            label: Text(data['estado'] ?? 'Entregado', style: const TextStyle(color: Colors.white)),
+                            backgroundColor: data['estado'] == 'No entregado' ? Colors.red : Colors.green,
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       if (observaciones.isNotEmpty)
                         Text('Observaciones: $observaciones'),
+                      if (estado == 'No entregado') ...[
+                        const SizedBox(height: 8),
+                        Text('Cajas Devueltas: $cajasDevueltas', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                      ],
                       const SizedBox(height: 12),
                       
                       if (fotoBase64 != null && fotoBase64.isNotEmpty) ...[
@@ -107,7 +154,10 @@ class HistorialEntregasScreen extends StatelessWidget {
                           ),
                         ),
                       ] else ...[
-                        const Text('No se adjuntó firma.', style: TextStyle(fontStyle: FontStyle.italic)),
+                        Text(
+                          estado == 'No entregado' ? 'No se adjuntó foto ni firma por ser No Entregado.' : 'No se adjuntó firma.', 
+                          style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)
+                        ),
                       ]
                     ],
                   ),

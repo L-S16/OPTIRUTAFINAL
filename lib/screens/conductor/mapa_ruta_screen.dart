@@ -7,7 +7,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MapaRutaScreen extends StatefulWidget {
-  const MapaRutaScreen({super.key});
+  final LatLng destino;
+  final String nombreDestino;
+
+  const MapaRutaScreen({
+    super.key,
+    this.destino = const LatLng(-0.9322, -78.6155),
+    this.nombreDestino = 'Latacunga',
+  });
 
   @override
   State<MapaRutaScreen> createState() => _MapaRutaScreenState();
@@ -19,14 +26,17 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
   bool _isLoading = true;
   StreamSubscription<Position>? _positionStreamSubscription;
 
-  // Coordenadas fijas de destino
-  final LatLng _destinoLatacunga = const LatLng(-0.9322, -78.6155);
+  // Coordenadas de destino pasadas por el widget
+  late LatLng _destino;
+  late String _nombreDestino;
 
   final List<Polyline> _polylines = [];
 
   @override
   void initState() {
     super.initState();
+    _destino = widget.destino;
+    _nombreDestino = widget.nombreDestino;
     _initMapAndLocation();
   }
 
@@ -56,7 +66,8 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
       // Obtener posición inicial
       _currentPosition = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.high),
       ).timeout(const Duration(seconds: 10), onTimeout: () {
         debugPrint("Timeout obteniendo ubicación actual.");
         return Position(
@@ -86,13 +97,14 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
   void _dibujarRutaDirecta() {
     if (_currentPosition == null) return;
-    final LatLng origenActual = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+    final LatLng origenActual =
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
 
     setState(() {
       _polylines.clear();
       _polylines.add(
         Polyline(
-          points: [origenActual, _destinoLatacunga],
+          points: [origenActual, _destino],
           color: Colors.blueAccent,
           strokeWidth: 5,
         ),
@@ -106,7 +118,8 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
       distanceFilter: 10,
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
       (Position? position) {
         if (position != null) {
           setState(() {
@@ -138,18 +151,20 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
   void _showErrorSnackBar(String message) {
     setState(() => _isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final LatLng initialCenter = _currentPosition != null
         ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
-        : _destinoLatacunga;
+        : _destino;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ruta en curso', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Ruta en curso',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green[700],
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -166,7 +181,8 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.optiruta.final',
                     ),
                     PolylineLayer(
@@ -176,7 +192,8 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                       markers: [
                         if (_currentPosition != null)
                           Marker(
-                            point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                            point: LatLng(_currentPosition!.latitude,
+                                _currentPosition!.longitude),
                             width: 60,
                             height: 60,
                             child: const Tooltip(
@@ -189,12 +206,12 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                             ),
                           ),
                         Marker(
-                          point: _destinoLatacunga,
+                          point: _destino,
                           width: 60,
                           height: 60,
-                          child: const Tooltip(
-                            message: 'Destino: Latacunga',
-                            child: Icon(
+                          child: Tooltip(
+                            message: 'Destino: $_nombreDestino',
+                            child: const Icon(
                               Icons.location_on,
                               color: Colors.red,
                               size: 36,
@@ -212,7 +229,8 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                   right: 20,
                   child: Card(
                     elevation: 6,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Row(
@@ -221,9 +239,13 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Text('Navegando hacia', style: TextStyle(color: Colors.grey)),
-                              Text('Latacunga', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            children: [
+                              const Text('Navegando hacia',
+                                  style: TextStyle(color: Colors.grey)),
+                              Text(_nombreDestino,
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold)),
                             ],
                           ),
                           FloatingActionButton(
@@ -232,12 +254,14 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                             onPressed: () {
                               if (_currentPosition != null) {
                                 _mapController.move(
-                                  LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                                  LatLng(_currentPosition!.latitude,
+                                      _currentPosition!.longitude),
                                   17.0,
                                 );
                               }
                             },
-                            child: const Icon(Icons.my_location, color: Colors.white),
+                            child: const Icon(Icons.my_location,
+                                color: Colors.white),
                           )
                         ],
                       ),

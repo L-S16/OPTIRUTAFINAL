@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
@@ -656,11 +657,15 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                                     'Conductor: $conductorAsignado',
                                     style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black54),
                                   ),
+                                  const Spacer(),
+                                  const Text('Ver Detalles', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
+                                  const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.blue),
                                 ],
                               ),
                             ],
                           ),
                         ),
+                        onTap: () => _mostrarDetalleEntrega(context, id, estado, conductorAsignado),
                       ),
                     );
                   },
@@ -717,6 +722,132 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
       ),
     );
   }
+
+
+  void _mostrarDetalleEntrega(BuildContext context, String pedidoId, String estado, String conductor) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Detalle del Pedido: $pedidoId'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('entregas')
+                  .where('pedidoId', isEqualTo: pedidoId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(heightFactor: 2, child: CircularProgressIndicator());
+                }
+                
+                final docs = snapshot.data?.docs ?? [];
+                
+                // Intento buscar por numeroRuta si no se encontró por pedidoId
+                if (docs.isEmpty) {
+                  return FutureBuilder<QuerySnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('entregas')
+                        .where('numeroRuta', isEqualTo: pedidoId)
+                        .get(),
+                    builder: (ctx, snap2) {
+                      if (snap2.connectionState == ConnectionState.waiting) {
+                        return const Center(heightFactor: 2, child: CircularProgressIndicator());
+                      }
+                      
+                      final fallbackDocs = snap2.data?.docs ?? [];
+                      if (fallbackDocs.isEmpty) {
+                        return const Text('No hay detalles de entrega registrados aún para este pedido.');
+                      }
+                      return _buildEntregaDetalle(fallbackDocs.first, estado, conductor);
+                    }
+                  );
+                }
+
+                return _buildEntregaDetalle(docs.first, estado, conductor);
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Widget _buildEntregaDetalle(QueryDocumentSnapshot doc, String estado, String conductor) {
+    final data = doc.data() as Map<String, dynamic>;
+    final observaciones = data['observaciones'] ?? 'Ninguna';
+    final fotoBase64 = data['fotoBase64'];
+    final firmaBase64 = data['firmaBase64'];
+    final cajasDevueltas = data['cajasDevueltas'] ?? 0;
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_shipping, size: 16),
+              const SizedBox(width: 4),
+              Text('Conductor: $conductor', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getEstadoColor(estado).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text('Estado Actual: $estado', style: TextStyle(color: _getEstadoColor(estado), fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 12),
+          const Text('Observaciones:', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(observaciones),
+          const SizedBox(height: 12),
+          
+          if (cajasDevueltas > 0 || estado == 'No entregado') ...[
+            Text('Cajas Devueltas: $cajasDevueltas', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+            const SizedBox(height: 12),
+          ],
+
+          if (fotoBase64 != null && fotoBase64.isNotEmpty) ...[
+            const Text('Evidencia Fotográfica:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+              child: Image.memory(
+                base64Decode(fotoBase64),
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          
+          if (firmaBase64 != null && firmaBase64.isNotEmpty) ...[
+            const Text('Firma del Cliente:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              height: 100,
+              width: double.infinity,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+              child: Image.memory(
+                base64Decode(firmaBase64),
+                fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
+              ),
+            ),
+          ],
 
   Future<void> _reasignarRutaPedido(BuildContext context, String pedidoId) async {
     try {
@@ -1155,6 +1286,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
               style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
             ),
           ),
+
         ],
       ),
     );
