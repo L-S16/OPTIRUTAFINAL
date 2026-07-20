@@ -46,17 +46,20 @@ class _RegistrarBodegueroScreenState extends State<RegistrarBodegueroScreen> {
 
       final user = userCredential.user;
       if (user != null) {
-        // 2. Guardar información adicional en Firestore (de manera no bloqueante por si falla)
-        FirebaseFirestore.instance.collection('usuarios').doc(user.uid).set({
-          'nombre': nombre,
-          'correo': email,
-          'rol': 'bodeguero',
-          'fechaCreacion': FieldValue.serverTimestamp(),
-        }).then((_) {
+        try {
+          // 2. Guardar información adicional en Firestore (esperando que se complete)
+          await FirebaseFirestore.instance.collection('bodegueros').doc(user.uid).set({
+            'nombre': nombre,
+            'correo': email,
+            'fechaRegistro': DateTime.now().toIso8601String(),
+          });
           debugPrint("Perfil de bodeguero guardado en Firestore.");
-        }).catchError((e) {
-          debugPrint("Error guardando perfil en Firestore ($e).");
-        });
+        } catch (e) {
+          debugPrint("Error guardando perfil en Firestore ($e). Eliminando cuenta de Auth para evitar inconsistencias...");
+          // Borrar usuario recién creado en Auth si no se pudo crear su perfil en Firestore
+          await user.delete();
+          throw Exception("Error de base de datos: No se pudo guardar la información de perfil.");
+        }
       }
 
       if (mounted) {

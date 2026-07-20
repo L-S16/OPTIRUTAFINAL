@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/pedido.dart';
 import '../../providers/pedido_provider.dart';
+import '../../utils/geocoding_helper.dart';
 
 class RegistrarPedidoScreen extends StatefulWidget {
   const RegistrarPedidoScreen({super.key});
@@ -14,16 +15,37 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _clienteController = TextEditingController();
   final _direccionController = TextEditingController();
+  final _telefonoController = TextEditingController();
+  final _detalleController = TextEditingController();
   final _cajasController = TextEditingController();
   String _prioridadSeleccionada = 'Media';
   bool _isLoading = false;
 
   final List<String> _prioridades = ['Alta', 'Media', 'Baja'];
+  String _zonaDetectada = 'Centro';
+
+  @override
+  void initState() {
+    super.initState();
+    _direccionController.addListener(_onDireccionChanged);
+  }
+
+  void _onDireccionChanged() {
+    final newZona = GeocodingHelper.clasificarZonaAutomatica(_direccionController.text);
+    if (newZona != _zonaDetectada) {
+      setState(() {
+        _zonaDetectada = newZona;
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _direccionController.removeListener(_onDireccionChanged);
     _clienteController.dispose();
     _direccionController.dispose();
+    _telefonoController.dispose();
+    _detalleController.dispose();
     _cajasController.dispose();
     super.dispose();
   }
@@ -37,6 +59,8 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
 
     final String cliente = _clienteController.text.trim();
     final String direccion = _direccionController.text.trim();
+    final String telefono = _telefonoController.text.trim();
+    final String detalle = _detalleController.text.trim();
     final int numeroCajas = int.parse(_cajasController.text.trim());
     final String id = 'PED-${DateTime.now().millisecondsSinceEpoch}';
 
@@ -47,40 +71,58 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
       prioridad: _prioridadSeleccionada,
       estado: 'Pendiente',
       numeroCajas: numeroCajas,
+      telefono: telefono.isNotEmpty ? telefono : null,
+      detalle: detalle.isNotEmpty ? detalle : null,
+      zona: _zonaDetectada,
+      fechaCreacion: DateTime.now().toIso8601String(),
     );
 
-    // Call provider (it updates locally immediately and Firestore in the background)
-    Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
+    try {
+      // Esperar a que se complete el registro en Firestore
+      await Provider.of<PedidoProvider>(context, listen: false).registrarPedido(nuevoPedido);
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Pedido registrado exitosamente: $id',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Pedido registrado exitosamente: $id',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: Colors.teal[600],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(15),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.teal[600],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint("Error al registrar pedido: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al registrar el pedido: $e'),
+            backgroundColor: Colors.red,
           ),
-          margin: const EdgeInsets.all(15),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      Navigator.pop(context);
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -193,8 +235,7 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // DIRECCION
+                           // DIRECCION
                           TextFormField(
                             controller: _direccionController,
                             decoration: InputDecoration(
@@ -210,10 +251,49 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
                             ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'Por favor ingrese la dirección';
+                                  return 'Por favor ingrese la dirección';
                               }
                               return null;
                             },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.public, size: 16, color: Colors.blueAccent),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Zona asignada automáticamente: ',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                                Text(
+                                  _zonaDetectada,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // TELEFONO
+                          TextFormField(
+                            controller: _telefonoController,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: 'Teléfono del Cliente',
+                              prefixIcon: const Icon(Icons.phone, color: Colors.blueAccent),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 20),
 
@@ -256,7 +336,7 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
                               Expanded(
                                 flex: 6,
                                 child: DropdownButtonFormField<String>(
-                                  value: _prioridadSeleccionada,
+                                  initialValue: _prioridadSeleccionada,
                                   decoration: InputDecoration(
                                     labelText: 'Prioridad',
                                     prefixIcon: Icon(Icons.flag, color: _getPriorityColor(_prioridadSeleccionada)),
@@ -297,6 +377,25 @@ class _RegistrarPedidoScreenState extends State<RegistrarPedidoScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // DETALLE DEL PEDIDO
+                          TextFormField(
+                            controller: _detalleController,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              labelText: 'Detalles del Pedido',
+                              alignLabelWithHint: true,
+                              prefixIcon: const Icon(Icons.receipt_long, color: Colors.blueAccent),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 35),
 
