@@ -18,7 +18,6 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  String _errorMessage = '';
 
   @override
   void dispose() {
@@ -32,15 +31,17 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Por favor, ingresa tu correo y contraseña.';
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, ingresa tu correo y contraseña.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
     setState(() {
       _isLoading = true;
-      _errorMessage = '';
     });
 
     try {
@@ -63,9 +64,14 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
           final String? rol = userData['rol'];
           if (rol != 'Administrador') {
             await FirebaseAuth.instance.signOut();
-            setState(() {
-              _errorMessage = 'Acceso denegado. No tienes permisos de Administrador.';
-            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Acceso denegado. No tienes permisos de Administrador.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
             return;
           }
         } else {
@@ -89,23 +95,35 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          _errorMessage = 'Correo o contraseña incorrectos.';
-        } else if (e.code == 'invalid-email') {
-          _errorMessage = 'El formato del correo es inválido.';
-        } else if (e.code == 'user-disabled') {
-          _errorMessage = 'Este usuario ha sido deshabilitado.';
-        } else if (e.code == 'network-request-failed') {
-          _errorMessage = 'Error de conexión. Verifica tu internet.';
-        } else {
-          _errorMessage = 'Error al iniciar sesión: ${e.message}';
-        }
-      });
+      String mensajeError = 'Ocurrió un error al iniciar sesión.';
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        mensajeError = 'Correo o contraseña incorrectos.';
+      } else if (e.code == 'invalid-email') {
+        mensajeError = 'El formato del correo es inválido.';
+      } else if (e.code == 'user-disabled') {
+        mensajeError = 'Este usuario ha sido deshabilitado.';
+      } else if (e.code == 'network-request-failed') {
+        mensajeError = 'Error de conexión. Verifica tu internet.';
+      } else {
+        mensajeError = 'Error al iniciar sesión: ${e.message}';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensajeError),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error inesperado: $e';
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error inesperado: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -225,14 +243,7 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      if (_errorMessage.isNotEmpty) ...[
-                        Text(
-                          _errorMessage,
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 15),
-                      ],
+
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
