@@ -764,6 +764,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                     Text('Pedido: $pedidoId'),
                     const SizedBox(height: 15),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: selectedRouteId,
                       decoration: const InputDecoration(
                         labelText: 'Seleccionar Nueva Ruta',
@@ -772,12 +773,17 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                       items: [
                         const DropdownMenuItem<String>(
                           value: null,
-                          child: Text('Ninguna (Retirar de ruta)'),
+                          child: Text('Ninguna (Retirar de ruta)', overflow: TextOverflow.ellipsis),
                         ),
                         ...activeRoutes.map((route) {
+                          final rId = route['id'].toString();
+                          final displayId = rId.length > 12 ? 'RUT-...${rId.substring(rId.length - 6)}' : rId;
                           return DropdownMenuItem<String>(
                             value: route['id'],
-                            child: Text('Ruta ${route['id']} (${route['nombreConductor']})'),
+                            child: Text(
+                              'Ruta $displayId (${route['nombreConductor']})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           );
                         }),
                       ],
@@ -827,7 +833,7 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                         }
 
                         batch.update(
-                          FirebaseFirestore.instance.collection('entregas').doc(pedidoId),
+                          FirebaseFirestore.instance.collection('entregas').doc('ENT-$pedidoId'),
                           {
                             'conductorId': nuevoConductorId,
                             'nombreConductor': nuevoConductorNombre,
@@ -888,13 +894,35 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
 
       final pedidoData = pedidoDoc.data() as Map<String, dynamic>;
 
-      final entregaDoc = await FirebaseFirestore.instance
+      DocumentSnapshot? entregaDoc;
+      final docIdDirecto = 'ENT-$pedidoId';
+      final docDirecto = await FirebaseFirestore.instance
           .collection('entregas')
-          .doc(pedidoId)
+          .doc(docIdDirecto)
           .get();
 
+      if (docDirecto.exists) {
+        entregaDoc = docDirecto;
+      } else {
+        final query = await FirebaseFirestore.instance
+            .collection('entregas')
+            .where('pedidoId', isEqualTo: pedidoId)
+            .get();
+        if (query.docs.isNotEmpty) {
+          entregaDoc = query.docs.first;
+        } else {
+          final docPedidoId = await FirebaseFirestore.instance
+              .collection('entregas')
+              .doc(pedidoId)
+              .get();
+          if (docPedidoId.exists) {
+            entregaDoc = docPedidoId;
+          }
+        }
+      }
+
       Map<String, dynamic> entregaData = {};
-      if (entregaDoc.exists) {
+      if (entregaDoc != null && entregaDoc.exists) {
         entregaData = entregaDoc.data() as Map<String, dynamic>;
       }
 

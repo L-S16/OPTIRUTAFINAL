@@ -100,7 +100,7 @@ class RutasScreen extends StatelessWidget {
 
                         for (var pedId in pedidosIds) {
                           batch.update(
-                            FirebaseFirestore.instance.collection('entregas').doc(pedId),
+                            FirebaseFirestore.instance.collection('entregas').doc('ENT-$pedId'),
                             {
                               'conductorId': nuevoConductorId,
                               'nombreConductor': nuevoConductorNombre,
