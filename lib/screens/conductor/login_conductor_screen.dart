@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'conductor_dashboard.dart';
 import 'registro_conductor_screen.dart';
+import '../admin/login_admin_screen.dart';
+import '../welcome_screen.dart';
 import '../../providers/pedido_provider.dart';
 
 class LoginConductorScreen extends StatefulWidget {
@@ -200,6 +202,20 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('OPTIRUTA'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver a Selección de Perfil',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                (route) => false,
+              );
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -300,7 +316,16 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
                 onPressed: _isLoading
                     ? null
                     : () {
-                        Navigator.pop(context);
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginAdminScreen(),
+                            ),
+                          );
+                        }
                       },
                 child: const Text(
                   '¿Eres Administrador? Iniciar sesión aquí',

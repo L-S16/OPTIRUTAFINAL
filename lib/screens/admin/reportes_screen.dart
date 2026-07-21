@@ -336,43 +336,66 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('rutas').snapshots(),
-        builder: (context, rutasSnapshot) {
-          // Mapear qué conductor tiene asignado qué pedido {pedidoId: conductorId}
-          final Map<String, String> conductorPorPedido = {};
-          if (rutasSnapshot.hasData) {
-            for (var doc in rutasSnapshot.data!.docs) {
-              final data = doc.data() as Map<String, dynamic>;
-              final conductorId = data['conductorId']?.toString() ?? 'Sin Conductor';
-              final pedidos = List<String>.from(data['pedidos'] ?? []);
-              for (var pedId in pedidos) {
-                conductorPorPedido[pedId] = conductorId;
-              }
+        stream: FirebaseFirestore.instance.collection('usuarios').snapshots(),
+        builder: (context, usuariosSnapshot) {
+          final Map<String, String> nombresUsuarios = {};
+          if (usuariosSnapshot.hasData) {
+            for (var doc in usuariosSnapshot.data!.docs) {
+              final uData = doc.data() as Map<String, dynamic>;
+              final nombre = uData['nombre'] ?? uData['email'] ?? doc.id;
+              nombresUsuarios[doc.id] = nombre.toString();
             }
           }
 
           return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('pedidos').snapshots(),
-            builder: (context, pedidosSnapshot) {
-              if (pedidosSnapshot.hasError) {
-                return const Center(child: Text('Error al obtener datos de Firestore.'));
+            stream: FirebaseFirestore.instance.collection('rutas').snapshots(),
+            builder: (context, rutasSnapshot) {
+              // Mapear qué conductor tiene asignado qué pedido {pedidoId: conductorNombre}
+              final Map<String, String> conductorPorPedido = {};
+              if (rutasSnapshot.hasData) {
+                for (var doc in rutasSnapshot.data!.docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final conductorId = data['conductorId']?.toString();
+                  final nombreDirecto = data['nombreConductor']?.toString();
+                  
+                  String displayConductor = 'Sin Conductor';
+                  if (nombreDirecto != null && nombreDirecto.isNotEmpty && nombreDirecto != 'Sin conductor') {
+                    displayConductor = nombreDirecto;
+                  } else if (conductorId != null && conductorId.isNotEmpty) {
+                    displayConductor = nombresUsuarios[conductorId] ?? conductorId;
+                  }
+
+                  final pedidos = List<String>.from(data['pedidos'] ?? []);
+                  for (var pedId in pedidos) {
+                    conductorPorPedido[pedId] = displayConductor;
+                  }
+                }
               }
-              if (pedidosSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
 
-              final pedidos = pedidosSnapshot.data?.docs ?? [];
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('pedidos').snapshots(),
+                builder: (context, pedidosSnapshot) {
+                  if (pedidosSnapshot.hasError) {
+                    return const Center(child: Text('Error al obtener datos de Firestore.'));
+                  }
+                  if (pedidosSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-              return TabBarView(
-                controller: _tabController,
-                physics: const NeverScrollableScrollPhysics(), // Evitar deslizamientos accidentales en el mapa
-                children: [
-                  // PESTAÑA 1: MONITOREO EN VIVO (MAPA)
-                  _buildMapaMonitoreo(pedidos),
+                  final pedidos = pedidosSnapshot.data?.docs ?? [];
 
-                  // PESTAÑA 2: REPORTE DE ENTREGAS
-                  _buildReporteEntregas(pedidos, conductorPorPedido),
-                ],
+                  return TabBarView(
+                    controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(), // Evitar deslizamientos accidentales en el mapa
+                    children: [
+                      // PESTAÑA 1: MONITOREO EN VIVO (MAPA)
+                      _buildMapaMonitoreo(pedidos),
+
+                      // PESTAÑA 2: REPORTE DE ENTREGAS
+                      _buildReporteEntregas(pedidos, conductorPorPedido),
+                    ],
+                  );
+                },
               );
             },
           );
@@ -623,8 +646,14 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                         ),
                         title: Row(
                           children: [
-                            Text(id, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueAccent)),
-                            const Spacer(),
+                            Expanded(
+                              child: Text(
+                                id,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueAccent),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
@@ -643,20 +672,24 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(cliente, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text(cliente, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 4),
-                              Text('Destino: $direccion', style: const TextStyle(fontSize: 12)),
+                              Text('Destino: $direccion', style: const TextStyle(fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
                               Text('Cajas: $cajas | Prioridad: $prioridad', style: const TextStyle(fontSize: 12)),
                               const Divider(height: 12),
                               Row(
                                 children: [
                                   const Icon(Icons.local_shipping, size: 14, color: Colors.grey),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'Conductor: $conductorAsignado',
-                                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black54),
+                                  Expanded(
+                                    child: Text(
+                                      'Conductor: $conductorAsignado',
+                                      style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black54),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 6),
                                   const Text('Ver Detalles', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
                                   const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.blue),
                                 ],
@@ -698,22 +731,30 @@ class _ReportesScreenState extends State<ReportesScreen> with SingleTickerProvid
       child: Card(
         color: color.withValues(alpha: 0.08),
         elevation: 0,
+        margin: const EdgeInsets.symmetric(horizontal: 2.0),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: color.withValues(alpha: 0.3)),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                value,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+                ),
               ),
               const SizedBox(height: 2),
-              Text(
-                title,
-                style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  style: TextStyle(fontSize: 9, color: Colors.grey[700]),
+                ),
               ),
             ],
           ),

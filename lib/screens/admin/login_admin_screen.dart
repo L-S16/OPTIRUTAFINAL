@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'admin_dashboard.dart';
 import '../bodega/login_bodeguero_screen.dart';
 import '../conductor/login_conductor_screen.dart';
+import '../welcome_screen.dart';
 import '../../providers/pedido_provider.dart';
 
 class LoginAdminScreen extends StatefulWidget {
@@ -206,6 +207,20 @@ class _LoginAdminScreenState extends State<LoginAdminScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('OPTIRUTA'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver a Selección de Perfil',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                (route) => false,
+              );
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
