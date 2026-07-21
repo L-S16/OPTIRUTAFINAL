@@ -318,7 +318,14 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () => _mostrarRecuperarContrasena(context),
+                child: const Text('¿Olvidaste tu contraseña?'),
+              ),
+              const SizedBox(height: 12),
               TextButton(
                 onPressed: _isLoading
                     ? null
@@ -358,6 +365,51 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _mostrarRecuperarContrasena(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final emailController = TextEditingController();
+        return AlertDialog(
+          title: const Text('Recuperar Contraseña'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Correo Electrónico',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final mail = emailController.text.trim();
+                if (mail.isNotEmpty) {
+                  try {
+                    await FirebaseAuth.instance.sendPasswordResetEmail(email: mail);
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Correo de recuperación enviado exitosamente.')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

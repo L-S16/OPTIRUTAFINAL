@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'admin/login_admin_screen.dart';
 import 'bodega/login_bodeguero_screen.dart';
 import 'conductor/login_conductor_screen.dart';
-import 'conductor/registro_conductor_screen.dart';
-import 'bodega/registrar_bodeguero_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -38,39 +35,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  void _onRegister() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Registrarse en OPTIRUTA'),
-          content: const Text('Selecciona tu perfil de cuenta nueva:'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegistroConductorScreen()),
-                );
-              },
-              child: const Text('Registrar Conductor'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegistrarBodegueroScreen()),
-                );
-              },
-              child: const Text('Registrar Bodeguero'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -177,86 +142,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Olvidaste contraseña
-                TextButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        final emailController = TextEditingController();
-                        return AlertDialog(
-                          title: const Text('Recuperar Contraseña'),
-                          content: TextField(
-                            controller: emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Correo Electrónico',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancelar'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                final mail = emailController.text.trim();
-                                if (mail.isNotEmpty) {
-                                  try {
-                                    await FirebaseAuth.instance.sendPasswordResetEmail(email: mail);
-                                    if (!context.mounted) return;
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Correo de recuperación enviado exitosamente.')),
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error: $e')),
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text('Enviar'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(
-                      color: Color(0xFF1E3A8A),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-
-                // Registro
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'No tengo una cuenta. ',
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    InkWell(
-                      onTap: _onRegister,
-                      child: const Text(
-                        'Registrarse.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2563EB),
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
