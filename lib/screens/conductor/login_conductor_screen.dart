@@ -45,41 +45,64 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     });
 
     try {
-      // 1. Verificar si el usuario está activo en Firestore
-      final userQuery = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .where('correo', isEqualTo: email)
-          .get();
-
-      if (userQuery.docs.isNotEmpty) {
-        final userData = userQuery.docs.first.data();
-        final bool estado = userData['estado'] as bool? ?? true;
-        if (!estado) {
-          setState(() {
-            _isLoading = false;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Esta cuenta ha sido desactivada por el administrador.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      // 2. Iniciar sesión en Firebase Auth
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // 1. Iniciar sesión en Firebase Auth
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ConductorDashboard()),
-        );
+
+      final user = userCredential.user;
+      if (user != null) {
+        // 2. Verificar si el usuario está activo en Firestore y es Conductor
+        final userQuery = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('correo', isEqualTo: email)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          final userData = userQuery.docs.first.data();
+          final String? rol = userData['rol'];
+          final bool estado = userData['estado'] as bool? ?? true;
+          
+          if (!estado) {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Esta cuenta ha sido desactivada por el administrador.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          if (rol != 'Conductor') {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Acceso denegado. No tienes permisos de Conductor.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ConductorDashboard()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMsg = 'Error al iniciar sesión';
