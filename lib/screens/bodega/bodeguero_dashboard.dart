@@ -9,7 +9,7 @@ import 'clasificar_pedidos.dart';
 import 'asignar_conductor_screen.dart';
 import 'confirmar_carga_screen.dart';
 import 'inventario_screen.dart';
-import '../admin/login_admin_screen.dart';
+import '../welcome_screen.dart';
 
 class BodegueroDashboard extends StatefulWidget {
   const BodegueroDashboard({super.key});
@@ -284,7 +284,7 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                 }
                 if (context.mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginAdminScreen()),
+                    MaterialPageRoute(builder: (context) => const WelcomeScreen()),
                     (route) => false,
                   );
                 }
@@ -889,48 +889,55 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                                         ),
                                         
                                         // Prioridad & Zona Chips
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: priorityColor.withValues(alpha: 0.12),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  color: priorityColor.withValues(alpha: 0.5),
-                                                  width: 1,
+                                        Flexible(
+                                          child: SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: priorityColor.withValues(alpha: 0.12),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    border: Border.all(
+                                                      color: priorityColor.withValues(alpha: 0.5),
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Container(
+                                                        width: 6,
+                                                        height: 6,
+                                                        decoration: BoxDecoration(
+                                                          color: priorityColor,
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        'Prioridad ${pedido.prioridad}',
+                                                        style: TextStyle(
+                                                          color: priorityColor,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                    width: 6,
-                                                    height: 6,
-                                                    decoration: BoxDecoration(
-                                                      color: priorityColor,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
+                                                if (pedido.zona != null && pedido.zona!.isNotEmpty) ...[
                                                   const SizedBox(width: 6),
-                                                  Text(
-                                                    'Prioridad ${pedido.prioridad}',
-                                                    style: TextStyle(
-                                                      color: priorityColor,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 11,
-                                                    ),
-                                                  ),
+                                                  _buildZonaChip(pedido.zona!),
                                                 ],
-                                              ),
+                                              ],
                                             ),
-                                            if (pedido.zona != null && pedido.zona!.isNotEmpty) ...[
-                                              const SizedBox(width: 6),
-                                              _buildZonaChip(pedido.zona!),
-                                            ],
-                                          ],
+                                          ),
                                         ),
                                       ],
                                     ),

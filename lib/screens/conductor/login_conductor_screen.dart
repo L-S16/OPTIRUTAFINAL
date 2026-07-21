@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'conductor_dashboard.dart';
 import 'registro_conductor_screen.dart';
+import '../admin/login_admin_screen.dart';
+import '../welcome_screen.dart';
 import '../../providers/pedido_provider.dart';
 
 class LoginConductorScreen extends StatefulWidget {
@@ -43,41 +45,64 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     });
 
     try {
-      // 1. Verificar si el usuario está activo en Firestore
-      final userQuery = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .where('correo', isEqualTo: email)
-          .get();
-
-      if (userQuery.docs.isNotEmpty) {
-        final userData = userQuery.docs.first.data();
-        final bool estado = userData['estado'] as bool? ?? true;
-        if (!estado) {
-          setState(() {
-            _isLoading = false;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Esta cuenta ha sido desactivada por el administrador.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      // 2. Iniciar sesión en Firebase Auth
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // 1. Iniciar sesión en Firebase Auth
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ConductorDashboard()),
-        );
+
+      final user = userCredential.user;
+      if (user != null) {
+        // 2. Verificar si el usuario está activo en Firestore y es Conductor
+        final userQuery = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('correo', isEqualTo: email)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          final userData = userQuery.docs.first.data();
+          final String? rol = userData['rol'];
+          final bool estado = userData['estado'] as bool? ?? true;
+          
+          if (!estado) {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Esta cuenta ha sido desactivada por el administrador.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          if (rol != 'Conductor') {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Acceso denegado. No tienes permisos de Conductor.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ConductorDashboard()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMsg = 'Error al iniciar sesión';
@@ -200,6 +225,20 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('OPTIRUTA'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Volver a Selección de Perfil',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                (route) => false,
+              );
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -300,7 +339,16 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
                 onPressed: _isLoading
                     ? null
                     : () {
-                        Navigator.pop(context);
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginAdminScreen(),
+                            ),
+                          );
+                        }
                       },
                 child: const Text(
                   '¿Eres Administrador? Iniciar sesión aquí',

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'login_admin_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../welcome_screen.dart';
 import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
 import 'conductores_screen.dart';
@@ -117,12 +118,19 @@ class AdminDashboardScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginAdminScreen()),
-                  (route) => false,
-                );
+                try {
+                  await FirebaseAuth.instance.signOut();
+                } catch (e) {
+                  debugPrint("Error signing out: $e");
+                }
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                    (route) => false,
+                  );
+                }
               },
               child: const Text(
                 'Sí, Salir',

@@ -6,7 +6,7 @@ import 'package:signature/signature.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../utils/geocoding_helper.dart';
-import 'mapa_ruta_screen.dart';
+
 
 class VerRutaAsignadaScreen extends StatefulWidget {
   final String routeId;
@@ -71,13 +71,17 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     
     final latLng = GeocodingHelper.getLatLngFromDireccion(destinoString, id);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MapaRutaScreen(
-        destino: latLng,
-        nombreDestino: destinoString,
-      )),
-    );
+    final Uri googleMapsUrl = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${latLng.latitude},${latLng.longitude}');
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir Google Maps')),
+        );
+      }
+    }
   }
 
   Future<void> _tomarFoto() async {

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ver_ruta_asignada_screen.dart';
 import 'historial_entregas_screen.dart';
+import '../welcome_screen.dart';
 
 class ConductorDashboard extends StatelessWidget {
   const ConductorDashboard({super.key});
@@ -34,7 +35,10 @@ class ConductorDashboard extends StatelessWidget {
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+                  (route) => false,
+                );
               }
             },
           ),
