@@ -115,50 +115,38 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 // Perfiles Row / Column
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final double cardWidth = constraints.maxWidth > 650
-                        ? (constraints.maxWidth - 32) / 3
-                        : constraints.maxWidth;
+                    final isDesktop = constraints.maxWidth > 650;
 
-                    final cards = [
-                      _buildProfileCard(
-                        index: 0,
-                        title: 'SUPER ADMINISTRADOR',
-                        description: 'Gestión global, reportes y configuración.',
-                        icon: Icons.assignment_ind_outlined,
-                        width: cardWidth,
+                    Widget buildCard(int index, String title, String description, IconData icon) {
+                      return _buildProfileCard(
+                        index: index,
+                        title: title,
+                        description: description,
+                        icon: icon,
+                        width: isDesktop ? null : double.infinity,
                         color: primaryColor,
-                      ),
-                      _buildProfileCard(
-                        index: 1,
-                        title: 'BODEGUERO',
-                        description: 'Control de inventario y preparación.',
-                        icon: Icons.inventory_2_outlined,
-                        width: cardWidth,
-                        color: primaryColor,
-                      ),
-                      _buildProfileCard(
-                        index: 2,
-                        title: 'CONDUCTOR',
-                        description: 'Rutas, entregas y confirmación.',
-                        icon: Icons.local_shipping_outlined,
-                        width: cardWidth,
-                        color: primaryColor,
-                      ),
-                    ];
+                      );
+                    }
 
-                    if (constraints.maxWidth > 650) {
+                    if (isDesktop) {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: cards,
+                        children: [
+                          Expanded(child: buildCard(0, 'SUPER ADMINISTRADOR', 'Gestión global, reportes y configuración.', Icons.assignment_ind_outlined)),
+                          const SizedBox(width: 16),
+                          Expanded(child: buildCard(1, 'BODEGUERO', 'Control de inventario y preparación.', Icons.inventory_2_outlined)),
+                          const SizedBox(width: 16),
+                          Expanded(child: buildCard(2, 'CONDUCTOR', 'Rutas, entregas y confirmación.', Icons.local_shipping_outlined)),
+                        ],
                       );
                     } else {
                       return Column(
                         children: [
-                          cards[0],
+                          buildCard(0, 'SUPER ADMINISTRADOR', 'Gestión global, reportes y configuración.', Icons.assignment_ind_outlined),
                           const SizedBox(height: 16),
-                          cards[1],
+                          buildCard(1, 'BODEGUERO', 'Control de inventario y preparación.', Icons.inventory_2_outlined),
                           const SizedBox(height: 16),
-                          cards[2],
+                          buildCard(2, 'CONDUCTOR', 'Rutas, entregas y confirmación.', Icons.local_shipping_outlined),
                         ],
                       );
                     }
@@ -283,7 +271,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required String title,
     required String description,
     required IconData icon,
-    required double width,
+    double? width,
     required Color color,
   }) {
     final bool isSelected = _selectedProfile == index;
@@ -297,7 +285,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: width,
-        height: 160,
+        constraints: const BoxConstraints(minHeight: 160),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.white,
