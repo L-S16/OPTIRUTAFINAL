@@ -314,9 +314,10 @@ class RutasScreen extends StatelessWidget {
                         isThreeLine: true,
                       ),
                       const Divider(),
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           TextButton.icon(
                             onPressed: () {
@@ -333,7 +334,6 @@ class RutasScreen extends StatelessWidget {
                             icon: const Icon(Icons.map),
                             label: const Text('Ver Mapa'),
                           ),
-                          const SizedBox(width: 10),
                           TextButton.icon(
                             onPressed: rutaCancelada
                                 ? null
@@ -344,11 +344,10 @@ class RutasScreen extends StatelessWidget {
                                        conductorId,
                                        pedidos,
                                      );
-                                  },
+                                   },
                             icon: const Icon(Icons.swap_horiz),
                             label: const Text('Reasignar'),
                           ),
-                          const SizedBox(width: 10),
                           TextButton.icon(
                             onPressed: rutaCancelada
                                 ? null
