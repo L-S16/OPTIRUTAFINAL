@@ -169,74 +169,6 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
     );
   }
 
-  void _mostrarConfiguracionLetra(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Consumer<PedidoProvider>(
-          builder: (context, provider, child) {
-            return AlertDialog(
-              title: const Text('Configuración Visual'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Configura el estilo de letra y tema de la aplicación:'),
-                  const SizedBox(height: 15),
-                  SwitchListTile(
-                    title: const Text('Tema Oscuro (Letra Blanca)'),
-                    value: !provider.isDarkFont,
-                    onChanged: (value) {
-                      provider.setFontColor(!value);
-                    },
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 10),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Tamaño de Letra:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<double>(
-                    initialValue: provider.fontSizeFactor,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 0.85,
-                        child: Text('Pequeño (Pantalla Chica)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 1.0,
-                        child: Text('Normal (Defecto)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 1.25,
-                        child: Text('Grande (Fácil Lectura)'),
-                      ),
-                    ],
-                    onChanged: (double? value) {
-                      if (value != null) {
-                        provider.setFontSizeFactor(value);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cerrar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   void _mostrarConfirmacionSalir(BuildContext context) {
     showDialog(
       context: context,
@@ -302,18 +234,21 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Dashboard Bodeguero',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Configuración Visual',
-            onPressed: () => _mostrarConfiguracionLetra(context),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text(
+            'Dashboard Bodeguero',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Configuración Visual',
+              onPressed: () => PedidoProvider.mostrarConfiguracionLetra(context),
+            ),
           Consumer<PedidoProvider>(
             builder: (context, provider, child) {
               final asignadosCount = provider.pedidos.where((p) => p.estado == 'Asignado').length;
@@ -1028,8 +963,9 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SectionHeaderData {
