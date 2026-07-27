@@ -219,7 +219,17 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Ruta #$numRuta', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+                    Expanded(
+                      child: Text(
+                        'Ruta #$numRuta',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Chip(
                       label: Text(_estadoEntrega, style: const TextStyle(color: Colors.white)),
                       backgroundColor: _getColorForState(_estadoEntrega),

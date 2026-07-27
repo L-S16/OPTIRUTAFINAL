@@ -98,11 +98,14 @@ class _HistorialEntregasScreenState extends State<HistorialEntregasScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Ruta #$numRuta',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                          Expanded(
+                            child: Text(
+                              'Ruta #$numRuta',
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Chip(
                             label: Text(data['estado'] ?? 'Entregado', style: const TextStyle(color: Colors.white)),
                             backgroundColor: data['estado'] == 'No entregado' ? Colors.red : Colors.green,
