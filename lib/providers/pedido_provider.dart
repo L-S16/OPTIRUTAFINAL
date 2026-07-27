@@ -119,6 +119,7 @@ class PedidoProvider with ChangeNotifier {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<double>(
+                    // ignore: deprecated_member_use
                     value: provider.fontSizeFactor > 1.75 ? 1.75 : provider.fontSizeFactor,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),

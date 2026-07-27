@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+// ignore: depend_on_referenced_packages
 import 'package:firebase_core_platform_interface/test.dart';
 import 'package:optiruta/main.dart';
 import 'package:optiruta/providers/pedido_provider.dart';
