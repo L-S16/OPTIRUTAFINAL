@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ver_ruta_asignada_screen.dart';
 import 'historial_entregas_screen.dart';
 import '../welcome_screen.dart';
+import '../../services/notification_service.dart';
 
 class ConductorDashboard extends StatelessWidget {
   const ConductorDashboard({super.key});
@@ -13,6 +14,10 @@ class ConductorDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final nombre = user?.displayName ?? 'Conductor';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService().initialize(context);
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -33,6 +38,7 @@ class ConductorDashboard extends StatelessWidget {
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',
             onPressed: () async {
+              NotificationService().dispose();
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(

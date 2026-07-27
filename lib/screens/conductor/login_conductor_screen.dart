@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import 'conductor_dashboard.dart';
 import 'registro_conductor_screen.dart';
 import '../admin/login_admin_screen.dart';
@@ -45,41 +44,64 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     });
 
     try {
-      // 1. Verificar si el usuario está activo en Firestore
-      final userQuery = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .where('correo', isEqualTo: email)
-          .get();
-
-      if (userQuery.docs.isNotEmpty) {
-        final userData = userQuery.docs.first.data();
-        final bool estado = userData['estado'] as bool? ?? true;
-        if (!estado) {
-          setState(() {
-            _isLoading = false;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Esta cuenta ha sido desactivada por el administrador.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      // 2. Iniciar sesión en Firebase Auth
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // 1. Iniciar sesión en Firebase Auth
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ConductorDashboard()),
-        );
+
+      final user = userCredential.user;
+      if (user != null) {
+        // 2. Verificar si el usuario está activo en Firestore y es Conductor
+        final userQuery = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .where('correo', isEqualTo: email)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          final userData = userQuery.docs.first.data();
+          final String? rol = userData['rol'];
+          final bool estado = userData['estado'] as bool? ?? true;
+          
+          if (!estado) {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Esta cuenta ha sido desactivada por el administrador.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          if (rol != 'Conductor') {
+            await FirebaseAuth.instance.signOut();
+            setState(() {
+              _isLoading = false;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Acceso denegado. No tienes permisos de Conductor.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+        }
+        
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ConductorDashboard()),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       String errorMsg = 'Error al iniciar sesión';
@@ -129,74 +151,6 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
     super.dispose();
   }
 
-  void _mostrarConfiguracionLetra(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Consumer<PedidoProvider>(
-          builder: (context, provider, child) {
-            return AlertDialog(
-              title: const Text('Configuración Visual'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Configura el estilo de letra y tema de la aplicación:'),
-                  const SizedBox(height: 15),
-                  SwitchListTile(
-                    title: const Text('Tema Oscuro (Letra Blanca)'),
-                    value: !provider.isDarkFont,
-                    onChanged: (value) {
-                      provider.setFontColor(!value);
-                    },
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 10),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Tamaño de Letra:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<double>(
-                    initialValue: provider.fontSizeFactor,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 0.85,
-                        child: Text('Pequeño (Pantalla Chica)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 1.0,
-                        child: Text('Normal (Defecto)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 1.25,
-                        child: Text('Grande (Fácil Lectura)'),
-                      ),
-                    ],
-                    onChanged: (double? value) {
-                      if (value != null) {
-                        provider.setFontSizeFactor(value);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cerrar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -220,7 +174,7 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Configuración Visual',
-            onPressed: () => _mostrarConfiguracionLetra(context),
+            onPressed: () => PedidoProvider.mostrarConfiguracionLetra(context),
           ),
         ],
       ),
@@ -295,7 +249,14 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _isLoading
+                    ? null
+                    : () => _mostrarRecuperarContrasena(context),
+                child: const Text('¿Olvidaste tu contraseña?'),
+              ),
+              const SizedBox(height: 12),
               TextButton(
                 onPressed: _isLoading
                     ? null
@@ -335,6 +296,51 @@ class _LoginConductorScreenState extends State<LoginConductorScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _mostrarRecuperarContrasena(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final emailController = TextEditingController();
+        return AlertDialog(
+          title: const Text('Recuperar Contraseña'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Correo Electrónico',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final mail = emailController.text.trim();
+                if (mail.isNotEmpty) {
+                  try {
+                    await FirebaseAuth.instance.sendPasswordResetEmail(email: mail);
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Correo de recuperación enviado exitosamente.')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -28,7 +28,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkFont = Provider.of<PedidoProvider>(context).isDarkFont;
+    final provider = Provider.of<PedidoProvider>(context);
+    final isDarkFont = provider.isDarkFont;
+    final textScale = provider.fontSizeFactor;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -47,6 +49,8 @@ class MyApp extends StatelessWidget {
         fontFamily: GoogleFonts.outfit().fontFamily,
         primaryColor: const Color(0xFF4F46E5), // Indigo
         scaffoldBackgroundColor: const Color(0xFFF8FAFC), // Slate 50 (muy premium)
+        iconTheme: IconThemeData(size: 24.0 * textScale),
+        primaryIconTheme: IconThemeData(size: 24.0 * textScale),
         cardTheme: CardThemeData(
           elevation: 2,
           shadowColor: Colors.black.withValues(alpha: 0.04),
@@ -55,13 +59,13 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           elevation: 0,
           backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF0F172A),
+          foregroundColor: const Color(0xFF0F172A),
           centerTitle: true,
-          iconTheme: IconThemeData(color: Color(0xFF0F172A)),
-          titleTextStyle: TextStyle(
+          iconTheme: IconThemeData(color: const Color(0xFF0F172A), size: 24.0 * textScale),
+          titleTextStyle: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
             color: Color(0xFF0F172A),
@@ -106,6 +110,8 @@ class MyApp extends StatelessWidget {
         fontFamily: GoogleFonts.outfit().fontFamily,
         primaryColor: const Color(0xFF6366F1), // Indigo claro
         scaffoldBackgroundColor: const Color(0xFF0F172A), // Slate 900
+        iconTheme: IconThemeData(size: 24.0 * textScale),
+        primaryIconTheme: IconThemeData(size: 24.0 * textScale),
         cardTheme: CardThemeData(
           elevation: 4,
           shadowColor: Colors.black.withValues(alpha: 0.2),
@@ -114,13 +120,13 @@ class MyApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           elevation: 0,
-          backgroundColor: Color(0xFF1E293B),
+          backgroundColor: const Color(0xFF1E293B),
           foregroundColor: Colors.white,
           centerTitle: true,
-          iconTheme: IconThemeData(color: Colors.white),
-          titleTextStyle: TextStyle(
+          iconTheme: IconThemeData(color: Colors.white, size: 24.0 * textScale),
+          titleTextStyle: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
             color: Colors.white,

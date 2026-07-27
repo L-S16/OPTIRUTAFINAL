@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'admin/login_admin_screen.dart';
 import 'bodega/login_bodeguero_screen.dart';
 import 'conductor/login_conductor_screen.dart';
-import 'conductor/registro_conductor_screen.dart';
-import 'bodega/registrar_bodeguero_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -38,39 +35,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  void _onRegister() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Registrarse en OPTIRUTA'),
-          content: const Text('Selecciona tu perfil de cuenta nueva:'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegistroConductorScreen()),
-                );
-              },
-              child: const Text('Registrar Conductor'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegistrarBodegueroScreen()),
-                );
-              },
-              child: const Text('Registrar Bodeguero'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -115,50 +80,38 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 // Perfiles Row / Column
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final double cardWidth = constraints.maxWidth > 650
-                        ? (constraints.maxWidth - 32) / 3
-                        : constraints.maxWidth;
+                    final isDesktop = constraints.maxWidth > 650;
 
-                    final cards = [
-                      _buildProfileCard(
-                        index: 0,
-                        title: 'SUPER ADMINISTRADOR',
-                        description: 'Gestión global, reportes y configuración.',
-                        icon: Icons.assignment_ind_outlined,
-                        width: cardWidth,
+                    Widget buildCard(int index, String title, String description, IconData icon) {
+                      return _buildProfileCard(
+                        index: index,
+                        title: title,
+                        description: description,
+                        icon: icon,
+                        width: isDesktop ? null : double.infinity,
                         color: primaryColor,
-                      ),
-                      _buildProfileCard(
-                        index: 1,
-                        title: 'BODEGUERO',
-                        description: 'Control de inventario y preparación.',
-                        icon: Icons.inventory_2_outlined,
-                        width: cardWidth,
-                        color: primaryColor,
-                      ),
-                      _buildProfileCard(
-                        index: 2,
-                        title: 'CONDUCTOR',
-                        description: 'Rutas, entregas y confirmación.',
-                        icon: Icons.local_shipping_outlined,
-                        width: cardWidth,
-                        color: primaryColor,
-                      ),
-                    ];
+                      );
+                    }
 
-                    if (constraints.maxWidth > 650) {
+                    if (isDesktop) {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: cards,
+                        children: [
+                          Expanded(child: buildCard(0, 'SUPER ADMINISTRADOR', 'Gestión global, reportes y configuración.', Icons.assignment_ind_outlined)),
+                          const SizedBox(width: 16),
+                          Expanded(child: buildCard(1, 'BODEGUERO', 'Control de inventario y preparación.', Icons.inventory_2_outlined)),
+                          const SizedBox(width: 16),
+                          Expanded(child: buildCard(2, 'CONDUCTOR', 'Rutas, entregas y confirmación.', Icons.local_shipping_outlined)),
+                        ],
                       );
                     } else {
                       return Column(
                         children: [
-                          cards[0],
+                          buildCard(0, 'SUPER ADMINISTRADOR', 'Gestión global, reportes y configuración.', Icons.assignment_ind_outlined),
                           const SizedBox(height: 16),
-                          cards[1],
+                          buildCard(1, 'BODEGUERO', 'Control de inventario y preparación.', Icons.inventory_2_outlined),
                           const SizedBox(height: 16),
-                          cards[2],
+                          buildCard(2, 'CONDUCTOR', 'Rutas, entregas y confirmación.', Icons.local_shipping_outlined),
                         ],
                       );
                     }
@@ -190,86 +143,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 20),
-
-                // Olvidaste contraseña
-                TextButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        final emailController = TextEditingController();
-                        return AlertDialog(
-                          title: const Text('Recuperar Contraseña'),
-                          content: TextField(
-                            controller: emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Correo Electrónico',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancelar'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                final mail = emailController.text.trim();
-                                if (mail.isNotEmpty) {
-                                  try {
-                                    await FirebaseAuth.instance.sendPasswordResetEmail(email: mail);
-                                    if (!context.mounted) return;
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Correo de recuperación enviado exitosamente.')),
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error: $e')),
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text('Enviar'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                  child: const Text(
-                    '¿Olvidaste tu contraseña?',
-                    style: TextStyle(
-                      color: Color(0xFF1E3A8A),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-
-                // Registro
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'No tengo una cuenta. ',
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    InkWell(
-                      onTap: _onRegister,
-                      child: const Text(
-                        'Registrarse.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF2563EB),
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -283,7 +156,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required String title,
     required String description,
     required IconData icon,
-    required double width,
+    double? width,
     required Color color,
   }) {
     final bool isSelected = _selectedProfile == index;
@@ -297,7 +170,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: width,
-        height: 160,
+        constraints: const BoxConstraints(minHeight: 160),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.white,
