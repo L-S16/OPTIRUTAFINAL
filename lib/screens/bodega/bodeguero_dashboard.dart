@@ -23,10 +23,26 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
   String _selectedEstado = 'Todos';
   String _selectedPrioridad = 'Todos';
   String _selectedZona = 'Todos';
+  DateTime? _selectedDate;
 
   final List<String> _estados = ['Todos', 'Pendiente', 'Asignado', 'En Ruta', 'Entregado'];
   final List<String> _prioridades = ['Todos', 'Alta', 'Media', 'Baja'];
   final List<String> _zonas = ['Todos', 'Norte', 'Sur', 'Este', 'Oeste', 'Centro', 'Sin Clasificar'];
+
+  DateTime? _getPedidoDate(Pedido p) {
+    DateTime? dt;
+    if (p.fechaCreacion != null && p.fechaCreacion!.isNotEmpty) {
+      dt = DateTime.tryParse(p.fechaCreacion!);
+    }
+    if (dt == null && p.id.startsWith('PED-')) {
+      final msStr = p.id.replaceFirst('PED-', '');
+      final ms = int.tryParse(msStr);
+      if (ms != null) {
+        dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      }
+    }
+    return dt;
+  }
 
   bool _esReciente(dynamic p) {
     DateTime? dt;
@@ -327,6 +343,77 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
               ),
             ),
           ),
+          // Filtro de Calendario para organizar pedidos por dia
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: InkWell(
+              onTap: () async {
+                final DateTime? picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                  helpText: 'SELECCIONA DÍA PARA VER PEDIDOS',
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: Colors.blueAccent,
+                          onPrimary: Colors.white,
+                          onSurface: Colors.black87,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (picked != null) {
+                  setState(() {
+                    _selectedDate = picked;
+                  });
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month, color: Colors.blueAccent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _selectedDate == null
+                            ? 'Organizar por día (Ver Calendario)'
+                            : 'Pedidos del: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    if (_selectedDate != null)
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.clear, color: Colors.blueAccent),
+                        onPressed: () {
+                          setState(() {
+                            _selectedDate = null;
+                          });
+                        },
+                      )
+                    else
+                      const Icon(Icons.arrow_forward_ios, color: Colors.blueAccent, size: 14),
+                  ],
+                ),
+              ),
+            ),
+          ),
           // Banner de Notificación Instantánea de Carga Pendiente
           Consumer<PedidoProvider>(
             builder: (context, provider, _) {
@@ -489,7 +576,21 @@ class _BodegueroDashboardState extends State<BodegueroDashboard> {
                     matchesZona = pedido.zona == _selectedZona;
                   }
 
-                  return matchesSearch && matchesEstado && matchesPrioridad && matchesZona;
+                  final bool matchesDate;
+                  if (_selectedDate == null) {
+                    matchesDate = true;
+                  } else {
+                    final pDate = _getPedidoDate(pedido);
+                    if (pDate == null) {
+                      matchesDate = false;
+                    } else {
+                      matchesDate = pDate.year == _selectedDate!.year &&
+                          pDate.month == _selectedDate!.month &&
+                          pDate.day == _selectedDate!.day;
+                    }
+                  }
+
+                  return matchesSearch && matchesEstado && matchesPrioridad && matchesZona && matchesDate;
                 }).toList();
 
                 final pedidosRecientes = <Pedido>[];
