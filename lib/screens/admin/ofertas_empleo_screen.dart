@@ -15,8 +15,7 @@ class OfertasEmpleoScreen extends StatelessWidget {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('entregas')
-            .where('necesitaServicio', isEqualTo: true)
+            .collection('ofertas_empleo')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {

@@ -168,6 +168,29 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
         });
       }
 
+      // Guardar u ordenar en la colección dedicada 'ofertas_empleo' en Firestore
+      if (_necesitaServicio) {
+        await FirebaseFirestore.instance
+            .collection('ofertas_empleo')
+            .doc(widget.routeId)
+            .set({
+          'id': widget.routeId,
+          'pedidoId': pedidoId ?? widget.routeId,
+          'cliente': widget.routeData['cliente'] ?? 'Cliente',
+          'destino': widget.routeData['destino'] ?? widget.routeData['direccion'] ?? 'Desconocido',
+          'telefono': widget.routeData['telefono'] ?? '',
+          'descripcionServicio': _descripcionServicioController.text,
+          'fechaRegistro': FieldValue.serverTimestamp(),
+          'conductorId': widget.routeData['conductorId'] ?? '',
+          'estado': _estadoEntrega,
+        });
+      } else {
+        await FirebaseFirestore.instance
+            .collection('ofertas_empleo')
+            .doc(widget.routeId)
+            .delete();
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cambios guardados correctamente')),

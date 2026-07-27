@@ -200,8 +200,7 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('entregas')
-                  .where('necesitaServicio', isEqualTo: true)
+                  .collection('ofertas_empleo')
                   .snapshots(),
               builder: (context, snapshot) {
                 final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
