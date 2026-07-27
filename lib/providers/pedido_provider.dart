@@ -119,6 +119,7 @@ class PedidoProvider with ChangeNotifier {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<double>(
+                    isExpanded: true,
                     // ignore: deprecated_member_use
                     value: provider.fontSizeFactor > 1.75 ? 1.75 : provider.fontSizeFactor,
                     decoration: const InputDecoration(
@@ -128,23 +129,38 @@ class PedidoProvider with ChangeNotifier {
                     items: const [
                       DropdownMenuItem(
                         value: 0.85,
-                        child: Text('Pequeño (Pantalla Chica)'),
+                        child: Text(
+                          'Pequeño (Pantalla Chica)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 1.0,
-                        child: Text('Normal (Defecto)'),
+                        child: Text(
+                          'Normal (Defecto)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 1.25,
-                        child: Text('Grande (Fácil Lectura)'),
+                        child: Text(
+                          'Grande (Fácil Lectura)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 1.5,
-                        child: Text('Muy Grande'),
+                        child: Text(
+                          'Muy Grande',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 1.75,
-                        child: Text('Extra Grande'),
+                        child: Text(
+                          'Extra Grande',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                     onChanged: (double? value) {

@@ -40,12 +40,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = const Color(0xFF1E3A8A); // Azul oscuro premium
+    final screenSize = MediaQuery.of(context).size;
+    final isShortScreen = screenSize.height < 700;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          padding: EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: isShortScreen ? 20 : 40,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900),
             child: Column(
@@ -54,15 +59,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 // Logo
                 Image.asset(
                   'assets/images/logo_optiruta.png',
-                  height: 140,
+                  height: isShortScreen ? 90 : 140,
                   fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: isShortScreen ? 8 : 12),
                 // Bienvenido
                 const Text(
                   '¡Bienvenido a OPTIRUTA!',
                   style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -75,7 +80,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     color: Colors.black54,
                   ),
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: isShortScreen ? 20 : 30),
 
                 // Perfiles Row / Column
                 LayoutBuilder(
@@ -88,6 +93,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         title: title,
                         description: description,
                         icon: icon,
+                        isDesktop: isDesktop,
                         width: isDesktop ? null : double.infinity,
                         color: primaryColor,
                       );
@@ -108,9 +114,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       return Column(
                         children: [
                           buildCard(0, 'SUPER ADMINISTRADOR', 'Gestión global, reportes y configuración.', Icons.assignment_ind_outlined),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           buildCard(1, 'BODEGUERO', 'Control de inventario y preparación.', Icons.inventory_2_outlined),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           buildCard(2, 'CONDUCTOR', 'Rutas, entregas y confirmación.', Icons.local_shipping_outlined),
                         ],
                       );
@@ -118,7 +124,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   },
                 ),
 
-                const SizedBox(height: 35),
+                SizedBox(height: isShortScreen ? 25 : 35),
 
                 // Botón Siguiente
                 SizedBox(
@@ -156,6 +162,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     required String title,
     required String description,
     required IconData icon,
+    required bool isDesktop,
     double? width,
     required Color color,
   }) {
@@ -170,8 +177,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: width,
-        constraints: const BoxConstraints(minHeight: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        constraints: BoxConstraints(
+          minHeight: isDesktop ? 160 : 75,
+        ),
+        padding: isDesktop
+            ? const EdgeInsets.symmetric(horizontal: 16, vertical: 18)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -194,35 +205,79 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 36,
-              color: isSelected ? Colors.white : color,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : Colors.black87,
+        child: isDesktop
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 36,
+                    color: isSelected ? Colors.white : color,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    description,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isSelected ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : color.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 26,
+                      color: isSelected ? Colors.white : color,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSelected ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? Colors.white70 : Colors.black54,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

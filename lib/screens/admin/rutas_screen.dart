@@ -210,162 +210,180 @@ class RutasScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('rutas')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text('Error al cargar las rutas'),
-            );
+        stream: FirebaseFirestore.instance.collection('usuarios').snapshots(),
+        builder: (context, usuariosSnapshot) {
+          final Map<String, String> nombresUsuarios = {};
+          if (usuariosSnapshot.hasData) {
+            for (var doc in usuariosSnapshot.data!.docs) {
+              final uData = doc.data() as Map<String, dynamic>;
+              final nombre = uData['nombre'] ?? uData['email'] ?? doc.id;
+              nombresUsuarios[doc.id] = nombre.toString();
+            }
           }
 
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('rutas')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(
+                  child: Text('Error al cargar las rutas'),
+                );
+              }
 
-          final rutas = snapshot.data!.docs;
+              if (snapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
 
-          if (rutas.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.route,
-                    size: 80,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 15),
-                  Text(
-                    'No existen rutas registradas',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+              final rutas = snapshot.data!.docs;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: rutas.length,
-            itemBuilder: (context, index) {
-              final documento = rutas[index];
-
-              final datos =
-                  documento.data() as Map<String, dynamic>;
-
-              final conductorId =
-                  datos['conductorId']?.toString() ??
-                      'Sin conductor';
-
-              final estado =
-                  datos['estado']?.toString() ?? 'Activa';
-
-              final pedidos =
-                  List<String>.from(datos['pedidos'] ?? []);
-
-              final rutaCancelada =
-                  estado.toLowerCase() == 'cancelada';
-
-              return Card(
-                elevation: 3,
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+              if (rutas.isEmpty) {
+                return const Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: rutaCancelada
-                              ? Colors.grey
-                              : Colors.blue,
-                          child: Icon(
-                            rutaCancelada
-                                ? Icons.route_outlined
-                                : Icons.route,
-                            color: Colors.white,
-                          ),
-                        ),
-                        title: Text(
-                          'Ruta ${documento.id}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Padding(
-                          padding:
-                              const EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Conductor: $conductorId\n'
-                            'Pedidos: ${pedidos.length}\n'
-                            'Estado: $estado',
-                          ),
-                        ),
-                        isThreeLine: true,
+                      Icon(
+                        Icons.route,
+                        size: 80,
+                        color: Colors.grey,
                       ),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.end,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => MapaRutaAdminScreen(
-                                    rutaId: documento.id,
-                                    pedidosIds: pedidos,
-                                  ),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.map),
-                            label: const Text('Ver Mapa'),
-                          ),
-                          const SizedBox(width: 10),
-                          TextButton.icon(
-                            onPressed: rutaCancelada
-                                ? null
-                                : () {
-                                     _reasignarConductor(
-                                       context,
-                                       documento.id,
-                                       conductorId,
-                                       pedidos,
-                                     );
-                                  },
-                            icon: const Icon(Icons.swap_horiz),
-                            label: const Text('Reasignar'),
-                          ),
-                          const SizedBox(width: 10),
-                          TextButton.icon(
-                            onPressed: rutaCancelada
-                                ? null
-                                : () {
-                                    _cancelarRuta(
-                                      context,
-                                      documento.id,
-                                    );
-                                  },
-                            icon: const Icon(Icons.cancel),
-                            label: const Text('Cancelar'),
-                          ),
-                        ],
+                      SizedBox(height: 15),
+                      Text(
+                        'No existen rutas registradas',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
-                ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: rutas.length,
+                itemBuilder: (context, index) {
+                  final documento = rutas[index];
+
+                  final datos =
+                      documento.data() as Map<String, dynamic>;
+
+                  final conductorId =
+                      datos['conductorId']?.toString() ??
+                          'Sin conductor';
+
+                  final nombreDirecto = datos['nombreConductor']?.toString() ?? '';
+                  final nombreConductorDisplay = nombreDirecto.isNotEmpty && nombreDirecto != 'Sin conductor'
+                      ? nombreDirecto
+                      : (nombresUsuarios[conductorId] ?? conductorId);
+
+                  final estado =
+                      datos['estado']?.toString() ?? 'Activa';
+
+                  final pedidos =
+                      List<String>.from(datos['pedidos'] ?? []);
+
+                  final rutaCancelada =
+                      estado.toLowerCase() == 'cancelada';
+
+                  return Card(
+                    elevation: 3,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: rutaCancelada
+                                  ? Colors.grey
+                                  : Colors.blue,
+                              child: Icon(
+                                rutaCancelada
+                                    ? Icons.route_outlined
+                                    : Icons.route,
+                                color: Colors.white,
+                              ),
+                            ),
+                            title: Text(
+                              'Ruta ${documento.id} - $nombreConductorDisplay',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding:
+                                  const EdgeInsets.only(top: 8),
+                              child: Text(
+                                'Conductor: $nombreConductorDisplay\n'
+                                'Pedidos: ${pedidos.length}\n'
+                                'Estado: $estado',
+                              ),
+                            ),
+                            isThreeLine: true,
+                          ),
+                          const Divider(),
+                          Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MapaRutaAdminScreen(
+                                        rutaId: documento.id,
+                                        pedidosIds: pedidos,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.map),
+                                label: const Text('Ver Mapa'),
+                              ),
+                              TextButton.icon(
+                                onPressed: rutaCancelada
+                                    ? null
+                                    : () {
+                                         _reasignarConductor(
+                                           context,
+                                           documento.id,
+                                           conductorId,
+                                           pedidos,
+                                         );
+                                       },
+                                icon: const Icon(Icons.swap_horiz),
+                                label: const Text('Reasignar'),
+                              ),
+                              TextButton.icon(
+                                onPressed: rutaCancelada
+                                    ? null
+                                    : () {
+                                        _cancelarRuta(
+                                          context,
+                                          documento.id,
+                                        );
+                                      },
+                                icon: const Icon(Icons.cancel),
+                                label: const Text('Cancelar'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );

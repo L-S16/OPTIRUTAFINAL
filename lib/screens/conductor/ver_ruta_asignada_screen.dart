@@ -34,6 +34,8 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
   bool _isSaving = false;
   final ImagePicker _picker = ImagePicker();
   String? _fotoBase64;
+  bool _necesitaServicio = false;
+  late TextEditingController _descripcionServicioController;
 
   @override
   void initState() {
@@ -41,6 +43,9 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     _estadoEntrega = widget.routeData['estado'] ?? 'Pendiente';
     _observacionesController =
         TextEditingController(text: widget.routeData['observaciones'] ?? '');
+    _necesitaServicio = widget.routeData['necesitaServicio'] ?? false;
+    _descripcionServicioController =
+        TextEditingController(text: widget.routeData['descripcionServicio'] ?? '');
   }
 
   @override
@@ -48,6 +53,7 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
     _observacionesController.dispose();
     _cajasDevueltasController.dispose();
     _signatureController.dispose();
+    _descripcionServicioController.dispose();
     super.dispose();
   }
 
@@ -142,6 +148,8 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
         'estado': _estadoEntrega,
         'observaciones': _observacionesController.text,
         'fechaActualizacion': FieldValue.serverTimestamp(),
+        'necesitaServicio': _necesitaServicio,
+        'descripcionServicio': _descripcionServicioController.text,
         if (_estadoEntrega == 'No entregado') 'cajasDevueltas': int.tryParse(_cajasDevueltasController.text) ?? 0,
         if (firmaBase64 != null && _estadoEntrega != 'No entregado') 'firmaBase64': firmaBase64,
         if (_fotoBase64 != null && _estadoEntrega != 'No entregado') 'fotoBase64': _fotoBase64,
@@ -155,7 +163,32 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
             .doc(pedidoId)
             .update({
           'estado': _estadoEntrega == 'Pendiente' ? 'En Ruta' : _estadoEntrega,
+          'necesitaServicio': _necesitaServicio,
+          'descripcionServicio': _descripcionServicioController.text,
         });
+      }
+
+      // Guardar u ordenar en la colección dedicada 'ofertas_empleo' en Firestore
+      if (_necesitaServicio) {
+        await FirebaseFirestore.instance
+            .collection('ofertas_empleo')
+            .doc(widget.routeId)
+            .set({
+          'id': widget.routeId,
+          'pedidoId': pedidoId ?? widget.routeId,
+          'cliente': widget.routeData['cliente'] ?? 'Cliente',
+          'destino': widget.routeData['destino'] ?? widget.routeData['direccion'] ?? 'Desconocido',
+          'telefono': widget.routeData['telefono'] ?? '',
+          'descripcionServicio': _descripcionServicioController.text,
+          'fechaRegistro': FieldValue.serverTimestamp(),
+          'conductorId': widget.routeData['conductorId'] ?? '',
+          'estado': _estadoEntrega,
+        });
+      } else {
+        await FirebaseFirestore.instance
+            .collection('ofertas_empleo')
+            .doc(widget.routeId)
+            .delete();
       }
 
       if (mounted) {
@@ -219,7 +252,17 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Ruta #$numRuta', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+                    Expanded(
+                      child: Text(
+                        'Ruta #$numRuta',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Chip(
                       label: Text(_estadoEntrega, style: const TextStyle(color: Colors.white)),
                       backgroundColor: _getColorForState(_estadoEntrega),
@@ -401,6 +444,37 @@ class _VerRutaAsignadaScreenState extends State<VerRutaAsignadaScreen> {
                         label: const Text('Limpiar Firma'),
                       ),
                     ],
+                  ),
+                ],
+                
+                // Campo opcional para solicitar servicio/oferta de empleo
+                const Divider(height: 32, thickness: 1),
+                const Text(
+                  'Oferta de Empleo / Servicios (Opcional)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('¿La tienda necesita contratar un servicio?'),
+                  subtitle: const Text('Activar si el cliente solicita personal o servicios externos.'),
+                  value: _necesitaServicio,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (bool value) {
+                    setState(() {
+                      _necesitaServicio = value;
+                    });
+                  },
+                ),
+                if (_necesitaServicio) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _descripcionServicioController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción del servicio solicitado',
+                      hintText: 'Ej. Requiere estibador, limpieza, electricista...',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ],
                 

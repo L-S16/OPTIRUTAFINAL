@@ -6,6 +6,7 @@ import 'rutas_screen.dart';
 import 'usuarios_screen.dart';
 import 'conductores_screen.dart';
 import 'reportes_screen.dart';
+import 'ofertas_empleo_screen.dart';
 import '../../providers/pedido_provider.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -194,6 +195,27 @@ class AdminDashboardScreen extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (context) => const UsuariosScreen(),
                   ),
+                );
+              },
+            ),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('ofertas_empleo')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final valor = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
+                return DashboardCard(
+                  titulo: 'Ofertas Empleo',
+                  valor: valor,
+                  icono: Icons.work,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const OfertasEmpleoScreen(),
+                      ),
+                    );
+                  },
                 );
               },
             ),
