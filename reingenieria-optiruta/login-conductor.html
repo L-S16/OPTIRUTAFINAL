@@ -45,8 +45,27 @@
     btn.disabled = true; btn.textContent = "Verificando...";
     document.getElementById("alert-box").innerHTML = "";
     try {
-      const { data } = await loginWithEmail(document.getElementById("email").value.trim(), document.getElementById("password").value);
-      if (data.rol !== "Conductor") throw new Error(`Acceso denegado. Tu rol es: ${data.rol}`);
+      const email = document.getElementById("email").value.trim();
+      const pwd = document.getElementById("password").value;
+      const { user, data } = await loginWithEmail(email, pwd);
+      
+      // Lógica idéntica a Flutter para Conductor:
+      // Si el registro de usuario existe en Firestore, el rol debe ser exactamente 'Conductor'
+      if (data) {
+        if (data.rol !== "Conductor") {
+          const { auth } = await import("./js/firebase-config.js");
+          const { signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+          await signOut(auth);
+          throw new Error(`Acceso denegado. No tienes permisos de Conductor.`);
+        }
+      }
+
+      // Guardar sesión local
+      localStorage.setItem("or_uid", user.uid);
+      localStorage.setItem("or_email", user.email);
+      localStorage.setItem("or_name", (data && (data.nombre || data.name)) || "Conductor");
+      localStorage.setItem("or_rol", "Conductor");
+
       showToast("¡Bienvenido, Conductor!", "success");
       setTimeout(() => window.location.href = "dashboard-conductor.html", 800);
     } catch (err) {

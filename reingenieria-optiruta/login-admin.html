@@ -62,10 +62,39 @@
     box.innerHTML = "";
 
     try {
-      const { data } = await loginWithEmail(email, pwd);
-      if (data.rol !== "Administrador") {
-        throw new Error(`Este acceso es solo para Administradores. Tu rol es: ${data.rol}`);
+      const { user, data } = await loginWithEmail(email, pwd);
+      
+      let finalData = data;
+      
+      if (data) {
+        if (data.rol !== "Administrador") {
+          const { auth } = await import("./js/firebase-config.js");
+          const { signOut } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+          await signOut(auth);
+          throw new Error(`Acceso denegado. No tienes permisos de Administrador.`);
+        }
+      } else {
+        // Si no existe, crear el perfil de administrador por defecto (primer acceso)
+        const { db } = await import("./js/firebase-config.js");
+        const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+        finalData = {
+          nombre: "Administrador",
+          correo: email,
+          rol: "Administrador",
+          estado: true
+        };
+        await setDoc(doc(db, "usuarios", user.uid), {
+          ...finalData,
+          fechaRegistro: serverTimestamp()
+        });
       }
+
+      // Guardar sesión actualizada
+      localStorage.setItem("or_uid", user.uid);
+      localStorage.setItem("or_email", user.email);
+      localStorage.setItem("or_name", finalData.nombre || "Administrador");
+      localStorage.setItem("or_rol", "Administrador");
+
       showToast("¡Bienvenido, Administrador!", "success");
       setTimeout(() => { window.location.href = "dashboard-admin.html"; }, 800);
     } catch (err) {

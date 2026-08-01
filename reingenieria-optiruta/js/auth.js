@@ -37,10 +37,9 @@ export function getSession() {
 export function isLoggedIn() { return !!localStorage.getItem("or_uid"); }
 
 // ── Login principal ───────────────────────────────────────────
-// Replica la lógica Flutter:
-//   1. Auth con Firebase
-//   2. Buscar en colección 'usuarios' por campo 'correo' (no por doc ID)
-//   3. Si no existe → auto-crear perfil Administrador (mismo comportamiento flutter admin)
+// Autentica con Firebase Auth y busca en la colección 'usuarios' por correo.
+// No realiza validaciones restrictivas de rol para permitir que cada pantalla
+// maneje su flujo idéntico al Flutter original.
 export async function loginWithEmail(email, password) {
   // 1. Autenticar
   const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -50,10 +49,9 @@ export async function loginWithEmail(email, password) {
   const q    = query(collection(db, "usuarios"), where("correo", "==", email));
   const snap = await getDocs(q);
 
-  let data;
+  let data = null;
 
   if (!snap.empty) {
-    // Usuario encontrado
     data = snap.docs[0].data();
 
     // Verificar si la cuenta está activa
@@ -61,23 +59,10 @@ export async function loginWithEmail(email, password) {
       await signOut(auth);
       throw new Error("Esta cuenta ha sido desactivada. Contacta al administrador.");
     }
-  } else {
-    // No existe en Firestore → primer acceso de Admin (comportamiento flutter)
-    data = {
-      nombre: "Administrador",
-      correo: email,
-      rol:    "Administrador",
-      estado: true,
-    };
-    // Crear el documento en 'usuarios' con uid como doc ID
-    await setDoc(doc(db, "usuarios", user.uid), {
-      ...data,
-      fechaRegistro: serverTimestamp(),
-    });
   }
 
-  // 3. Guardar sesión local
-  saveSession(user, data);
+  // 3. Guardar sesión local inicial (se puede sobreescribir en cada login)
+  saveSession(user, data || { rol: "" });
   return { user, data };
 }
 

@@ -45,10 +45,38 @@
     btn.disabled = true; btn.textContent = "Verificando...";
     document.getElementById("alert-box").innerHTML = "";
     try {
-      const { data } = await loginWithEmail(document.getElementById("email").value.trim(), document.getElementById("password").value);
-      // El Flutter original no valida el rol de Bodeguero en 'usuarios', solo valida el estado.
-      // Forzamos el rol local en la sesión para que el dashboard y sidebar web carguen correctamente.
+      const email = document.getElementById("email").value.trim();
+      const pwd = document.getElementById("password").value;
+      const { user, data } = await loginWithEmail(email, pwd);
+      
+      // Lógica idéntica a Flutter para Bodeguero:
+      // Registrar o actualizar acceso en la colección 'bodegueros' usando user.uid como doc ID
+      const { db } = await import("./js/firebase-config.js");
+      const { doc, getDoc, setDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      
+      const docRef = doc(db, "bodegueros", user.uid);
+      const docSnap = await getDoc(docRef);
+      const formattedName = email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || "Bodeguero";
+      
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          nombre: formattedName,
+          correo: email,
+          fechaRegistro: new Date().toISOString(),
+          ultimoAcceso: new Date().toISOString()
+        });
+      } else {
+        await updateDoc(docRef, {
+          ultimoAcceso: new Date().toISOString()
+        });
+      }
+
+      // Guardar sesión local forzando rol a Bodeguero para la interfaz
+      localStorage.setItem("or_uid", user.uid);
+      localStorage.setItem("or_email", user.email);
+      localStorage.setItem("or_name", (data && (data.nombre || data.name)) || formattedName);
       localStorage.setItem("or_rol", "Bodeguero");
+
       showToast("¡Bienvenido, Bodeguero!", "success");
       setTimeout(() => window.location.href = "dashboard-bodeguero.html", 800);
     } catch (err) {
