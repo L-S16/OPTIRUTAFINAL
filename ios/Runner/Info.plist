@@ -66,5 +66,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- Permisos agregados para soporte completo en iOS -->
+	<key>NSCameraUsageDescription</key>
+	<string>OPTIRUTA requiere acceso a la cámara para capturar fotos como evidencia de la entrega.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OPTIRUTA requiere acceso a la galería para guardar o seleccionar fotos de evidencia de entrega.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OPTIRUTA requiere acceso a tu ubicación mientras usas la app para mostrar la ruta de entrega y tu posición en el mapa.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>OPTIRUTA requiere acceso a tu ubicación para rastrear el progreso de la ruta de entrega.</string>
 </dict>
 </plist>
