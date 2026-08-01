@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Reportes y PDF</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <!-- jsPDF para generación de PDFs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<!-- Sidebar Admin -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-admin.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item active" href="reportes.html"><span class="nav-icon">📊</span> Reportes</a>
+    <a class="nav-item" href="mapa-admin.html"><span class="nav-icon">🗺️</span> Monitoreo Mapa</a>
+    <a class="nav-item" href="conductores.html"><span class="nav-icon">🚛</span> Conductores</a>
+    <a class="nav-item" href="usuarios.html"><span class="nav-icon">👥</span> Usuarios</a>
+    <a class="nav-item" href="rutas.html"><span class="nav-icon">🗂️</span> Rutas</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role" id="sidebar-user-role">Administrador</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Admin · <strong>Reportes</strong></span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-primary" id="btn-export-all">⬇️ Exportar Reporte General PDF</button>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">📊 Reportes de Entregas</h1>
+  </div>
+
+  <!-- KPIs -->
+  <div class="stat-grid" style="margin-bottom:24px;">
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><div class="stat-value" id="kpi-total">—</div><div class="stat-label">Total</div></div></div>
+    <div class="stat-card"><div class="stat-icon success">✅</div><div class="stat-info"><div class="stat-value" id="kpi-ent">—</div><div class="stat-label">Entregados</div></div></div>
+    <div class="stat-card"><div class="stat-icon danger">❌</div><div class="stat-info"><div class="stat-value" id="kpi-no">—</div><div class="stat-label">No Entregados</div></div></div>
+    <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="kpi-tasa">—</div><div class="stat-label">Tasa de Éxito</div></div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div data-tabs-root>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-entregas">📋 Reporte de Entregas</button>
+      <button class="tab-btn" data-tab="tab-pedidos">📦 Todos los Pedidos</button>
+    </div>
+
+    <!-- Entregas con firma/foto -->
+    <div id="tab-entregas" class="tab-panel active">
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr><th>ID Ruta</th><th>Conductor</th><th>Estado</th><th>Obs.</th><th>Cajas Dev.</th><th>Fecha</th><th>PDF</th></tr>
+              </thead>
+              <tbody id="tabla-entregas">
+                <tr><td colspan="7"><div class="empty-state"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Todos los pedidos -->
+    <div id="tab-pedidos" class="tab-panel">
+      <div class="filters-bar">
+        <select class="filter-select" id="f-estado-r" onchange="renderPedidos()">
+          <option value="">Todos los estados</option>
+          <option>Pendiente</option><option>Asignado</option><option>En Ruta</option>
+          <option>Entregado</option><option>No entregado</option>
+        </select>
+        <select class="filter-select" id="f-prio-r" onchange="renderPedidos()">
+          <option value="">Toda prioridad</option>
+          <option>Alta</option><option>Media</option><option>Baja</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr><th>ID</th><th>Cliente</th><th>Dirección</th><th>Cajas</th><th>Prioridad</th><th>Estado</th><th>Zona</th><th>Fecha</th></tr>
+              </thead>
+              <tbody id="tabla-pedidos-r">
+                <tr><td colspan="8"><div class="empty-state"><div class="spinner"></div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: vista entrega con firma/foto -->
+<div class="modal-overlay" id="modal-entrega">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <span class="modal-title">📄 Detalle de Entrega</span>
+      <div class="modal-close" data-modal-close="modal-entrega">✕</div>
+    </div>
+    <div class="modal-body" id="modal-entrega-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close="modal-entrega">Cerrar</button>
+      <button class="btn btn-primary" id="btn-pdf-individual">⬇️ Descargar PDF</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, initTabs, estadoBadge, formatDateTime, showToast, openModal, closeModal, bindModalClose, formatBase64Image } from "./js/utils.js";
+  import { listenPedidos, getPedido } from "./js/pedidos.js";
+  import { listenTodasRutas } from "./js/rutas.js";
+  import { getReporteData, calcularKPIs, exportarPDFGeneral, exportarPDFEntrega } from "./js/reportes.js";
+
+  if (!requireAuth("Administrador")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  initTabs();
+  bindModalClose();
+  window.doLogout = logout;
+
+  let allPedidos = []; let allEntregas = [];
+  let currentEntrega = null; let currentPedido = null;
+
+  listenPedidos(pedidos => {
+    allPedidos = pedidos;
+    const kpis = calcularKPIs(pedidos, allEntregas);
+    document.getElementById("kpi-total").textContent = kpis.total;
+    document.getElementById("kpi-ent").textContent   = kpis.entregados;
+    document.getElementById("kpi-no").textContent    = kpis.noEntregados;
+    document.getElementById("kpi-tasa").textContent  = kpis.tasaExito+"%";
+    window.renderPedidos();
+  });
+
+  listenTodasRutas(rutas => {
+    allEntregas = rutas;
+    const tbody = document.getElementById("tabla-entregas");
+    if (rutas.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin entregas</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rutas.map(r => `
+      <tr>
+        <td><code style="font-size:.75rem;color:var(--primary);">${r.id.substring(0,12)}…</code></td>
+        <td>${r.nombreConductor||"—"}</td>
+        <td>${estadoBadge(r.estado||"—")}</td>
+        <td style="font-size:.8rem;max-width:150px;overflow:hidden;">${(r.observaciones||"—").substring(0,40)}</td>
+        <td>${r.cajasDevueltas||0}</td>
+        <td style="font-size:.8rem;color:var(--slate-500);">${formatDateTime(r.fechaActualizacion||r.fechaCreacion)}</td>
+        <td>
+          <button class="btn btn-sm btn-ghost" title="Ver/PDF" onclick="verEntrega('${r.id}')">📄 PDF</button>
+        </td>
+      </tr>
+    `).join("");
+  });
+
+  window.renderPedidos = function() {
+    const est  = document.getElementById("f-estado-r")?.value||"";
+    const prio = document.getElementById("f-prio-r")?.value||"";
+    const filtered = allPedidos.filter(p => (!est||p.estado===est) && (!prio||p.prioridad===prio));
+    const tbody = document.getElementById("tabla-pedidos-r");
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin resultados</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(p => `
+      <tr>
+        <td><code style="font-size:.75rem;color:var(--primary);">${p.id}</code></td>
+        <td><strong>${p.cliente||"—"}</strong></td>
+        <td style="font-size:.82rem;color:var(--slate-600);">${(p.direccion||"—").substring(0,30)}</td>
+        <td>${p.numeroCajas||0}</td>
+        <td>${p.prioridad||"—"}</td>
+        <td>${estadoBadge(p.estado||"—")}</td>
+        <td><span class="chip">${p.zona||"Sin Clasificar"}</span></td>
+        <td style="font-size:.8rem;color:var(--slate-500);">${formatDateTime(p.fechaCreacion)}</td>
+      </tr>
+    `).join("");
+  };
+
+  window.verEntrega = async function(rutaId) {
+    const e = allEntregas.find(r => r.id === rutaId);
+    if (!e) return;
+    currentEntrega = e;
+    currentPedido  = (e.pedidos||[]).length > 0 ? await getPedido(e.pedidos[0]) : null;
+    
+    const firmaUrl = formatBase64Image(e.firmaBase64, "image/png");
+    const fotoUrl  = formatBase64Image(e.fotoBase64, "image/jpeg");
+
+    document.getElementById("modal-entrega-body").innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div><div style="font-size:.78rem;color:var(--slate-500);">Conductor</div><div style="font-weight:600;">${e.nombreConductor||"—"}</div></div>
+        <div><div style="font-size:.78rem;color:var(--slate-500);">Estado</div>${estadoBadge(e.estado||"—")}</div>
+        <div><div style="font-size:.78rem;color:var(--slate-500);">Cliente</div><div style="font-weight:600;">${currentPedido?.cliente||"—"}</div></div>
+        <div><div style="font-size:.78rem;color:var(--slate-500);">Cajas Devueltas</div><div style="font-weight:600;">${e.cajasDevueltas||0}</div></div>
+      </div>
+      <div style="margin-bottom:12px;"><div style="font-size:.78rem;color:var(--slate-500);">Observaciones</div><div>${e.observaciones||"—"}</div></div>
+      ${e.firmaBase64 ? `<div style="margin-bottom:12px;"><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Firma Digital</div><img src="${firmaUrl}" style="max-height:100px;border:1px solid var(--slate-200);border-radius:8px;"/></div>` : ""}
+      ${e.fotoBase64  ? `<div><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Foto Evidencia</div><img src="${fotoUrl}" style="max-height:180px;border-radius:8px;object-fit:contain;"/></div>` : ""}
+    `;
+    openModal("modal-entrega");
+  };
+
+  document.getElementById("btn-pdf-individual").onclick = async function() {
+    if (currentEntrega) await exportarPDFEntrega(currentEntrega, currentPedido);
+  };
+
+  document.getElementById("btn-export-all").onclick = async function() {
+    const btn = this;
+    btn.disabled = true; btn.textContent = "Generando…";
+    try {
+      await exportarPDFGeneral();
+      showToast("PDF generado correctamente ✅","success");
+    } catch(e) { showToast(e.message,"error"); }
+    btn.disabled = false; btn.textContent = "⬇️ Exportar Reporte General PDF";
+  };
+</script>
+</body>
+</html>

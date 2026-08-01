@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Inventario</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item active" href="inventario.html"><span class="nav-icon">📋</span> Inventario</a>
+    <a class="nav-item" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar Zonas</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Inventario</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">📋 Inventario de Cajas</h1>
+  </div>
+
+  <!-- Resumen de cajas -->
+  <div class="stat-grid" style="margin-bottom:24px;">
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><div class="stat-value" id="total-cajas">—</div><div class="stat-label">Total Cajas en Sistema</div></div></div>
+    <div class="stat-card"><div class="stat-icon warning">⏳</div><div class="stat-info"><div class="stat-value" id="cajas-pend">—</div><div class="stat-label">Cajas Pendientes</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🚚</div><div class="stat-info"><div class="stat-value" id="cajas-ruta">—</div><div class="stat-label">Cajas En Ruta</div></div></div>
+    <div class="stat-card"><div class="stat-icon success">✅</div><div class="stat-info"><div class="stat-value" id="cajas-ent">—</div><div class="stat-label">Cajas Entregadas</div></div></div>
+  </div>
+
+  <!-- Tabla de pedidos con cajas -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Detalle por Pedido</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead><tr><th>ID</th><th>Cliente</th><th>Zona</th><th>Cajas</th><th>Estado</th><th>Prioridad</th></tr></thead>
+          <tbody id="tabla-inv">
+            <tr><td colspan="6"><div class="empty-state"><div class="spinner"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, estadoBadge, prioridadBadge } from "./js/utils.js";
+  import { listenPedidos } from "./js/pedidos.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser(); initSidebar();
+  window.doLogout = logout;
+
+  listenPedidos(pedidos => {
+    const totalCajas = pedidos.reduce((a,p)=>a+(p.numeroCajas||0),0);
+    const cajasPend  = pedidos.filter(p=>p.estado==="Pendiente").reduce((a,p)=>a+(p.numeroCajas||0),0);
+    const cajasRuta  = pedidos.filter(p=>["Asignado","En Ruta"].includes(p.estado)).reduce((a,p)=>a+(p.numeroCajas||0),0);
+    const cajasEnt   = pedidos.filter(p=>p.estado==="Entregado").reduce((a,p)=>a+(p.numeroCajas||0),0);
+
+    document.getElementById("total-cajas").textContent = totalCajas;
+    document.getElementById("cajas-pend").textContent  = cajasPend;
+    document.getElementById("cajas-ruta").textContent  = cajasRuta;
+    document.getElementById("cajas-ent").textContent   = cajasEnt;
+
+    const tbody = document.getElementById("tabla-inv");
+    if (!pedidos.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin pedidos</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = [...pedidos].sort((a,b)=>(b.numeroCajas||0)-(a.numeroCajas||0)).map(p => `
+      <tr>
+        <td><code style="font-size:.75rem;color:var(--primary);">${p.id}</code></td>
+        <td><strong>${p.cliente||"—"}</strong></td>
+        <td><span class="chip">${p.zona||"Sin Clasificar"}</span></td>
+        <td><strong>${p.numeroCajas||0}</strong></td>
+        <td>${estadoBadge(p.estado)}</td>
+        <td>${prioridadBadge(p.prioridad||"—")}</td>
+      </tr>
+    `).join("");
+  });
+</script>
+</body>
+</html>

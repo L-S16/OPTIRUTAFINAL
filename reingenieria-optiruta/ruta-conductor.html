@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Ruta Asignada</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: 380px; border-radius:var(--radius-lg); }
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-conductor.html"><span class="nav-icon">🏠</span> Mis Rutas</a>
+    <a class="nav-item" href="historial-entregas.html"><span class="nav-icon">📋</span> Historial</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">C</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Conductor</div><div class="user-role" id="sidebar-user-role">Conductor</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Conductor · <strong>Ruta Asignada</strong></span>
+  </div>
+  <div class="topbar-right">
+    <a href="dashboard-conductor.html" class="btn btn-sm btn-secondary">← Volver</a>
+  </div>
+</header>
+
+<main class="main-content">
+  <div id="loading-wrap"><div class="empty-state"><div class="spinner"></div><div class="empty-title">Cargando ruta…</div></div></div>
+  <div id="main-wrap" style="display:none;">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title" id="ruta-title">Ruta</h1>
+        <div id="ruta-estado-badge"></div>
+      </div>
+      <button class="btn btn-primary" id="btn-confirmar">✅ Confirmar Entrega</button>
+    </div>
+
+    <!-- Mapa -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span class="card-title">🗺️ Mapa de Navegación</span>
+        <button class="btn btn-sm btn-ghost" onclick="centrarMiUbicacion()">📍 Mi Ubicación</button>
+      </div>
+      <div class="card-body" style="padding:12px;">
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <!-- Pedidos de la ruta -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">📦 Pedidos de esta Ruta</span></div>
+      <div class="card-body" style="padding:0;">
+        <div id="pedidos-ruta" style="padding:12px;">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
+  import { initSidebar, showToast, estadoBadge, geocodeAddress } from "./js/utils.js";
+  import { getRuta } from "./js/rutas.js";
+  import { getPedido } from "./js/pedidos.js";
+  import { initMap, addCurrentLocationMarker, addPedidoMarkers, geocodeAndCenter } from "./js/mapa.js";
+
+  if (!requireAuth("Conductor")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const params = new URLSearchParams(window.location.search);
+  const rutaId = params.get("id");
+
+  let mapInstance = null;
+
+  (async () => {
+    if (!rutaId) { window.location.href = "dashboard-conductor.html"; return; }
+    const ruta = await getRuta(rutaId);
+    if (!ruta) { showToast("Ruta no encontrada","error"); window.location.href = "dashboard-conductor.html"; return; }
+
+    document.getElementById("loading-wrap").style.display = "none";
+    document.getElementById("main-wrap").style.display    = "block";
+
+    document.getElementById("ruta-title").textContent    = `Ruta #${ruta.numeroRuta||rutaId.substring(0,8)}`;
+    document.getElementById("ruta-estado-badge").innerHTML = estadoBadge(ruta.estado);
+
+    // Inicializar mapa
+    mapInstance = initMap("map", [-0.2298500, -78.5249500], 12);
+
+    // Cargar pedidos de la ruta
+    const pedidosIds = ruta.pedidos || [];
+    const pedidos = await Promise.all(pedidosIds.map(id => getPedido(id)));
+    const validos  = pedidos.filter(Boolean);
+
+    const wrap = document.getElementById("pedidos-ruta");
+    if (validos.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="empty-title">Sin pedidos</div></div>`;
+    } else {
+      wrap.innerHTML = validos.map((p,i) => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--slate-100);">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${i+1}</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;">${p.cliente||"—"}</div>
+            <div style="font-size:.8rem;color:var(--slate-500);">📍 ${p.direccion||"—"}</div>
+            <div style="font-size:.8rem;color:var(--slate-500);">📦 ${p.numeroCajas||0} cajas · ${p.telefono||""}</div>
+          </div>
+          ${estadoBadge(p.estado)}
+          <button class="btn btn-sm btn-ghost" onclick="abrirGmaps('${encodeURIComponent(p.direccion||"")}')">🗺️</button>
+        </div>
+      `).join("");
+
+      // Geocodificar y mostrar en mapa
+      for (const p of validos) {
+        if (p.lat && p.lng) continue; // ya tiene coords
+        try {
+          const geo = await geocodeAddress(p.direccion||"");
+          if (geo) { p.lat = geo.lat; p.lng = geo.lng; }
+        } catch(e) {}
+      }
+      addPedidoMarkers(validos);
+    }
+
+    // Mi ubicación
+    try {
+      const { lat, lng } = await new Promise((res,rej) =>
+        navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),rej,{timeout:5000})
+      );
+      addCurrentLocationMarker(lat, lng);
+    } catch(e) { /* sin GPS */ }
+  })();
+
+  window.centrarMiUbicacion = function() {
+    navigator.geolocation.getCurrentPosition(p => {
+      if (mapInstance) mapInstance.setView([p.coords.latitude, p.coords.longitude], 15);
+    });
+  };
+
+  window.abrirGmaps = function(direccion) {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${direccion}`, "_blank");
+  };
+
+  document.getElementById("btn-confirmar").onclick = function() {
+    window.location.href = `confirmar-entrega.html?rutaId=${encodeURIComponent(rutaId)}`;
+  };
+</script>
+</body>
+</html>

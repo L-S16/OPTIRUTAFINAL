@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Acceso Bodeguero</title>
+  <meta name="description" content="Login del Bodeguero de OPTIRUTA"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="auth-bg">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="assets/logo_optiruta.png" alt="Logo" onerror="this.style.display='none'"/>
+      <h1>OPTIRUTA</h1>
+      <p>Módulo de Bodega</p>
+    </div>
+    <h2 class="auth-title">📦 Bodeguero</h2>
+    <p class="auth-sub">Accede para gestionar pedidos e inventario</p>
+    <div id="alert-box"></div>
+    <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Correo Electrónico</label>
+        <input id="email" type="email" class="form-control" placeholder="bodeguero@optiruta.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <div style="position:relative;">
+          <input id="password" type="password" class="form-control" placeholder="••••••••" required/>
+          <button type="button" onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);cursor:pointer;">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="auth-btn" id="btn-login">Ingresar</button>
+    </form>
+    <p class="auth-link"><a href="#" onclick="handleReset(event)">¿Olvidaste tu contraseña?</a></p>
+    <p class="auth-link" style="margin-top:8px;"><a href="index.html">← Volver</a></p>
+  </div>
+</div>
+<script type="module">
+  import { loginWithEmail, resetPassword } from "./js/auth.js";
+  import { showToast } from "./js/utils.js";
+  window.handleLogin = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-login");
+    btn.disabled = true; btn.textContent = "Verificando...";
+    document.getElementById("alert-box").innerHTML = "";
+    try {
+      const email = document.getElementById("email").value.trim();
+      const pwd = document.getElementById("password").value;
+      const { user, data } = await loginWithEmail(email, pwd);
+      
+      // Lógica idéntica a Flutter para Bodeguero:
+      // Registrar o actualizar acceso en la colección 'bodegueros' usando user.uid como doc ID
+      const { db } = await import("./js/firebase-config.js");
+      const { doc, getDoc, setDoc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      
+      const docRef = doc(db, "bodegueros", user.uid);
+      const docSnap = await getDoc(docRef);
+      const formattedName = email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || "Bodeguero";
+      
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          nombre: formattedName,
+          correo: email,
+          fechaRegistro: new Date().toISOString(),
+          ultimoAcceso: new Date().toISOString()
+        });
+      } else {
+        await updateDoc(docRef, {
+          ultimoAcceso: new Date().toISOString()
+        });
+      }
+
+      // Guardar sesión local forzando rol a Bodeguero para la interfaz
+      localStorage.setItem("or_uid", user.uid);
+      localStorage.setItem("or_email", user.email);
+      localStorage.setItem("or_name", (data && (data.nombre || data.name)) || formattedName);
+      localStorage.setItem("or_rol", "Bodeguero");
+
+      showToast("¡Bienvenido, Bodeguero!", "success");
+      setTimeout(() => window.location.href = "dashboard-bodeguero.html", 800);
+    } catch (err) {
+      console.error("Error completo en Login:", err);
+      const detail = err.code ? `[${err.code}] ` : "";
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${detail}${err.message}</div>`;
+      btn.disabled = false; btn.textContent = "Ingresar";
+    }
+  };
+  window.handleReset = async function(e) {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    if (!email) { showToast("Escribe tu correo primero","warning"); return; }
+    try { await resetPassword(email); showToast("Correo enviado ✉️","success"); }
+    catch(err) { showToast(err.message,"error"); }
+  };
+  window.togglePwd = function() {
+    const f = document.getElementById("password");
+    f.type = f.type === "password" ? "text" : "password";
+  };
+</script>
+</body>
+</html>

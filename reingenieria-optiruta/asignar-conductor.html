@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Asignar Conductor</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar Zonas</a>
+    <a class="nav-item active" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Asignar Conductor</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">🚛 Asignar Conductor a Ruta</h1>
+    <a href="dashboard-bodeguero.html" class="btn btn-secondary">← Volver</a>
+  </div>
+
+  <div id="alert-box"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+    <!-- Pedidos pendientes -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📦 Pedidos Pendientes</span>
+        <span id="sel-count" style="font-size:.8rem;color:var(--slate-500);">0 seleccionados</span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div id="pedidos-list" style="max-height:460px;overflow-y:auto;padding:12px;">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conductores -->
+    <div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><span class="card-title">👤 Conductor Activo</span></div>
+        <div class="card-body" style="padding:0;">
+          <div id="conductores-list" style="max-height:260px;overflow-y:auto;padding:12px;">
+            <div class="empty-state"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">📋 Resumen de Ruta</span></div>
+        <div class="card-body">
+          <div style="font-size:.875rem;color:var(--slate-600);margin-bottom:12px;">
+            <strong id="resumen-conductor">Ningún conductor seleccionado</strong>
+          </div>
+          <div style="font-size:.875rem;color:var(--slate-600);">
+            Pedidos seleccionados: <strong id="resumen-pedidos">0</strong>
+          </div>
+          <div style="font-size:.875rem;color:var(--slate-600);margin-top:4px;">
+            Total cajas: <strong id="resumen-cajas">0</strong>
+          </div>
+          <button class="btn btn-primary w-full" style="margin-top:16px;" id="btn-crear">
+            🚀 Crear Ruta y Asignar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, prioridadBadge, estadoBadge } from "./js/utils.js";
+  import { listenPedidos } from "./js/pedidos.js";
+  import { getConductoresActivos } from "./js/conductores.js";
+  import { crearRuta } from "./js/rutas.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  let allPedidos     = [];
+  let selectedPedidos= new Set();
+  let conductores    = [];
+  let selConductor   = null;
+
+  listenPedidos(pedidos => {
+    allPedidos = pedidos.filter(p => p.estado === "Pendiente");
+    renderPedidos();
+  });
+
+  (async () => {
+    conductores = await getConductoresActivos();
+    renderConductores();
+  })();
+
+  function renderPedidos() {
+    const el = document.getElementById("pedidos-list");
+    if (allPedidos.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin pedidos pendientes</div></div>`;
+      return;
+    }
+    el.innerHTML = allPedidos.map(p => `
+      <div class="pedido-item ${selectedPedidos.has(p.id)?'selected':''}" onclick="togglePedido('${p.id}')"
+        style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--slate-200);border-radius:8px;margin-bottom:6px;cursor:pointer;background:${selectedPedidos.has(p.id)?'var(--primary-10)':'white'};border-color:${selectedPedidos.has(p.id)?'var(--primary)':'var(--slate-200)'};">
+        <div style="width:20px;height:20px;border-radius:4px;border:2px solid ${selectedPedidos.has(p.id)?'var(--primary)':'var(--slate-300)'};background:${selectedPedidos.has(p.id)?'var(--primary)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:white;font-size:.7rem;">${selectedPedidos.has(p.id)?'✓':''}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:.875rem;">${p.cliente||p.id}</div>
+          <div style="font-size:.78rem;color:var(--slate-500);">${(p.direccion||"—").substring(0,35)}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;">${prioridadBadge(p.prioridad||"—")} <span style="font-size:.75rem;color:var(--slate-400);">📦 ${p.numeroCajas||0} cajas</span></div>
+        </div>
+      </div>
+    `).join("");
+    actualizarResumen();
+  }
+
+  function renderConductores() {
+    const el = document.getElementById("conductores-list");
+    if (conductores.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🚫</div><div class="empty-title">Sin conductores activos</div></div>`;
+      return;
+    }
+    el.innerHTML = conductores.map(c => `
+      <div onclick="selectConductor('${c.id}','${c.nombre||c.name||c.correo||c.id}')"
+        style="padding:10px 14px;border:2px solid ${selConductor?.id===c.id?'var(--primary)':'var(--slate-200)'};border-radius:8px;margin-bottom:8px;cursor:pointer;background:${selConductor?.id===c.id?'var(--primary-10)':'white'};transition:all .2s;">
+        <div style="font-weight:600;font-size:.875rem;">🚛 ${c.nombre||c.name||c.correo||c.id}</div>
+        <div style="font-size:.78rem;color:var(--slate-500);">${c.correo||""} ${c.tipoLicencia?'· Lic. '+c.tipoLicencia:""}</div>
+      </div>
+    `).join("");
+  }
+
+  function actualizarResumen() {
+    document.getElementById("sel-count").textContent     = `${selectedPedidos.size} seleccionados`;
+    document.getElementById("resumen-pedidos").textContent = selectedPedidos.size;
+    const cajas = allPedidos.filter(p=>selectedPedidos.has(p.id)).reduce((a,p)=>a+(p.numeroCajas||0),0);
+    document.getElementById("resumen-cajas").textContent   = cajas;
+    document.getElementById("resumen-conductor").textContent = selConductor ? `Conductor: ${selConductor.nombre}` : "Ningún conductor seleccionado";
+  }
+
+  window.togglePedido = function(id) {
+    if (selectedPedidos.has(id)) selectedPedidos.delete(id); else selectedPedidos.add(id);
+    renderPedidos();
+  };
+
+  window.selectConductor = function(id, nombre) {
+    selConductor = { id, nombre };
+    renderConductores();
+    actualizarResumen();
+  };
+
+  document.getElementById("btn-crear").onclick = async function() {
+    if (!selConductor)          { showToast("Selecciona un conductor","warning"); return; }
+    if (selectedPedidos.size===0){ showToast("Selecciona al menos un pedido","warning"); return; }
+    const btn = this;
+    btn.disabled = true; btn.textContent = "Creando ruta…";
+    try {
+      const cajas = allPedidos.filter(p=>selectedPedidos.has(p.id)).reduce((a,p)=>a+(p.numeroCajas||0),0);
+      await crearRuta({ conductorId: selConductor.id, nombreConductor: selConductor.nombre, pedidosIds:[...selectedPedidos], numeroCajas:cajas });
+      showToast("¡Ruta creada y conductor asignado! 🎉","success");
+      setTimeout(() => window.location.href = "confirmar-carga.html", 1200);
+    } catch(e) {
+      showToast(e.message,"error");
+      btn.disabled = false; btn.textContent = "🚀 Crear Ruta y Asignar";
+    }
+  };
+</script>
+</body>
+</html>

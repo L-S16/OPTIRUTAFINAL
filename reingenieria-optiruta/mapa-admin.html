@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Monitoreo en Vivo</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #map { height: calc(100vh - var(--topbar-h) - 200px); min-height:400px; border-radius:var(--radius-lg); }
+    .legend { padding:10px 14px; background:white; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm); font-size:.8rem; line-height:1.8; }
+    .legend-dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px; }
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-admin.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="reportes.html"><span class="nav-icon">📊</span> Reportes</a>
+    <a class="nav-item active" href="mapa-admin.html"><span class="nav-icon">🗺️</span> Monitoreo en Vivo</a>
+    <a class="nav-item" href="conductores.html"><span class="nav-icon">🚛</span> Conductores</a>
+    <a class="nav-item" href="rutas.html"><span class="nav-icon">🗂️</span> Rutas</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role" id="sidebar-user-role">Administrador</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Admin · <strong>Monitoreo en Vivo</strong></span>
+  </div>
+  <div class="topbar-right">
+    <span id="last-update" style="font-size:.8rem;color:var(--slate-500);"></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">🗺️ Monitoreo en Vivo</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-outline" onclick="geocodificarTodos()">📍 Geocodificar Pedidos</button>
+      <button class="btn btn-sm btn-secondary" onclick="window.location.reload()">🔄 Actualizar</button>
+    </div>
+  </div>
+
+  <!-- Leyenda -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-body" style="padding:12px 20px;">
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:.85rem;">
+        <span><span class="legend-dot" style="background:#10B981;"></span>Entregado</span>
+        <span><span class="legend-dot" style="background:#4F46E5;"></span>En Ruta</span>
+        <span><span class="legend-dot" style="background:#F59E0B;"></span>Asignado</span>
+        <span><span class="legend-dot" style="background:#94A3B8;"></span>Pendiente</span>
+        <span><span class="legend-dot" style="background:#EF4444;"></span>No Entregado</span>
+        <span id="map-count" style="margin-left:auto;color:var(--slate-500);"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mapa -->
+  <div id="map"></div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, geocodeAddress } from "./js/utils.js";
+  import { listenPedidos, actualizarPedido } from "./js/pedidos.js";
+  import { initMap, addPedidoMarkers } from "./js/mapa.js";
+
+  if (!requireAuth("Administrador")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const map = initMap("map", [-0.2298500, -78.5249500], 12);
+
+  listenPedidos(pedidos => {
+    const conCoords = pedidos.filter(p => p.lat && p.lng);
+    addPedidoMarkers(conCoords);
+    document.getElementById("map-count").textContent = `${conCoords.length} de ${pedidos.length} pedidos en mapa`;
+    document.getElementById("last-update").textContent = `Última actualización: ${new Date().toLocaleTimeString("es-ES")}`;
+  });
+
+  window.geocodificarTodos = async function() {
+    showToast("Geocodificando pedidos sin coordenadas… esto puede tardar un momento","default");
+    // Esta función es demostrativa; en producción sería una Cloud Function
+    showToast("Para geocodificación masiva, registra las coordenadas al crear los pedidos 📍","warning");
+  };
+</script>
+</body>
+</html>

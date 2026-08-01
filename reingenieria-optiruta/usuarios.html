@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Gestión de Usuarios</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-admin.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="reportes.html"><span class="nav-icon">📊</span> Reportes</a>
+    <a class="nav-item" href="conductores.html"><span class="nav-icon">🚛</span> Conductores</a>
+    <a class="nav-item active" href="usuarios.html"><span class="nav-icon">👥</span> Usuarios</a>
+    <a class="nav-item" href="rutas.html"><span class="nav-icon">🗂️</span> Rutas</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">A</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role" id="sidebar-user-role">Administrador</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Admin · <strong>Usuarios</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">👥 Gestión de Usuarios</h1>
+  </div>
+
+  <div class="filters-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="q-search" type="text" placeholder="Buscar usuario…" oninput="renderTabla()"/>
+    </div>
+    <select class="filter-select" id="f-rol" onchange="renderTabla()">
+      <option value="">Todos los roles</option>
+      <option>Administrador</option><option>Bodeguero</option><option>Conductor</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tabla-usuarios">
+            <tr><td colspan="5"><div class="empty-state"><div class="spinner"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, estadoBadge } from "./js/utils.js";
+  import { listenUsuarios, toggleEstadoUsuario, eliminarUsuario } from "./js/conductores.js";
+
+  if (!requireAuth("Administrador")) throw new Error("No autorizado");
+  populateSidebarUser(); initSidebar();
+  window.doLogout = logout;
+
+  let allUsuarios = [];
+  listenUsuarios(u => { allUsuarios = u; window.renderTabla(); });
+
+  window.renderTabla = function() {
+    const q   = document.getElementById("q-search").value.toLowerCase();
+    const rol = document.getElementById("f-rol").value;
+    const filtered = allUsuarios.filter(u =>
+      (!q   || (u.nombre||u.name||u.correo||"").toLowerCase().includes(q)) &&
+      (!rol || u.rol === rol)
+    );
+    const tbody = document.getElementById("tabla-usuarios");
+    if (!filtered.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin usuarios</div></div></td></tr>`; return; }
+    tbody.innerHTML = filtered.map(u => `
+      <tr>
+        <td><strong>${u.nombre||u.name||"—"}</strong></td>
+        <td>${u.correo||"—"}</td>
+        <td><span class="badge badge-asignado">${u.rol||"—"}</span></td>
+        <td>
+          <span class="badge ${u.estado!==false?'badge-entregado':'badge-no-entregado'}">
+            <span class="badge-dot"></span>${u.estado!==false?"Activo":"Inactivo"}
+          </span>
+        </td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm ${u.estado!==false?'btn-warning':'btn-success'}"
+              onclick="toggleEstado('${u.id}',${u.estado!==false})">
+              ${u.estado!==false?"⏸ Desactivar":"▶ Activar"}
+            </button>
+            <button class="btn btn-sm btn-ghost" onclick="if(confirm('¿Eliminar usuario ${u.nombre||u.correo}?')) eliminar('${u.id}')">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  };
+
+  window.toggleEstado = async function(uid, isActivo) {
+    try {
+      await toggleEstadoUsuario(uid, !isActivo);
+      showToast(`Usuario ${isActivo?"desactivado":"activado"} correctamente`,"success");
+    } catch(e) { showToast(e.message,"error"); }
+  };
+
+  window.eliminar = async function(id) {
+    try {
+      await eliminarUsuario(id);
+      showToast("Usuario eliminado","success");
+    } catch(e) { showToast(e.message,"error"); }
+  };
+</script>
+</body>
+</html>

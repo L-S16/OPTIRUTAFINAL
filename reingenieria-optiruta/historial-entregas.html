@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Historial de Entregas</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .calendar-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:4px; }
+    .cal-day {
+      aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;cursor:pointer;
+      font-size:.82rem;font-weight:500;transition:all .2s;
+      background:var(--slate-50);
+    }
+    .cal-day:hover { background:var(--primary-10);color:var(--primary); }
+    .cal-day.has-data { background:var(--primary-10);color:var(--primary);font-weight:700; }
+    .cal-day.has-data::after { content:'●';font-size:.5rem;line-height:1; }
+    .cal-day.selected { background:var(--primary);color:white; }
+    .cal-day.today { border:2px solid var(--primary); }
+    .cal-day.other-month { opacity:.35;cursor:default; }
+    .cal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+    .cal-weekday { font-size:.7rem;font-weight:700;color:var(--slate-400);text-align:center;padding:4px; }
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-conductor.html"><span class="nav-icon">🏠</span> Mis Rutas</a>
+    <a class="nav-item active" href="historial-entregas.html"><span class="nav-icon">📋</span> Historial</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">C</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Conductor</div><div class="user-role" id="sidebar-user-role">Conductor</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Conductor · <strong>Historial de Entregas</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">📋 Historial de Entregas</h1>
+    <a href="dashboard-conductor.html" class="btn btn-secondary">← Volver</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">
+    <!-- Calendario -->
+    <div class="card">
+      <div class="card-header" style="padding:14px 16px;">
+        <button class="btn btn-ghost btn-sm" onclick="prevMonth()">‹</button>
+        <span class="card-title" id="cal-title" style="font-size:.9rem;"></span>
+        <button class="btn btn-ghost btn-sm" onclick="nextMonth()">›</button>
+      </div>
+      <div class="card-body" style="padding:12px;">
+        <div class="calendar-grid" id="cal-weekdays">
+          <div class="cal-weekday">Do</div><div class="cal-weekday">Lu</div><div class="cal-weekday">Ma</div>
+          <div class="cal-weekday">Mi</div><div class="cal-weekday">Ju</div><div class="cal-weekday">Vi</div><div class="cal-weekday">Sá</div>
+        </div>
+        <div class="calendar-grid" id="cal-grid" style="margin-top:4px;"></div>
+      </div>
+      <div class="card-footer" style="padding:10px 16px;font-size:.78rem;color:var(--slate-500);">
+        Toca un día con ● para ver tus entregas
+      </div>
+    </div>
+
+    <!-- Resultados del día seleccionado -->
+    <div>
+      <div id="day-label" style="font-size:1rem;font-weight:600;color:var(--slate-700);margin-bottom:12px;">
+        Selecciona un día en el calendario
+      </div>
+      <div id="entregas-day">
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <div class="empty-title">Selecciona una fecha</div>
+          <div class="empty-desc">Haz clic en un día del calendario para ver tus entregas de ese día</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
+  import { initSidebar, estadoBadge, formatDateTime, formatBase64Image } from "./js/utils.js";
+  import { getHistorialConductor } from "./js/rutas.js";
+
+  if (!requireAuth("Conductor")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const session  = getSession();
+  let curDate    = new Date();
+  let allEntregas= [];
+  let selectedDay= null;
+
+  (async () => {
+    allEntregas = await getHistorialConductor(session.uid);
+    renderCalendar();
+  })();
+
+  function datesWithEntregas() {
+    return new Set(allEntregas.map(e => {
+      const d = e.fechaActualizacion || e.fechaCreacion;
+      if (!d) return null;
+      const dt = typeof d==="string" ? new Date(d) : (d.toDate ? d.toDate() : new Date(d));
+      return `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+    }).filter(Boolean));
+  }
+
+  function renderCalendar() {
+    const dates = datesWithEntregas();
+    const today = new Date();
+    const year  = curDate.getFullYear();
+    const month = curDate.getMonth();
+    document.getElementById("cal-title").textContent =
+      curDate.toLocaleDateString("es-ES",{month:"long",year:"numeric"}).replace(/^\w/,c=>c.toUpperCase());
+
+    const first = new Date(year, month, 1).getDay();
+    const last  = new Date(year, month+1, 0).getDate();
+    const grid  = document.getElementById("cal-grid");
+    let html = "";
+
+    // Días del mes anterior
+    const prevLast = new Date(year, month, 0).getDate();
+    for (let i = first-1; i >= 0; i--)
+      html += `<div class="cal-day other-month">${prevLast-i}</div>`;
+
+    for (let d = 1; d <= last; d++) {
+      const key     = `${year}-${month}-${d}`;
+      const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===d;
+      const hasDat  = dates.has(key);
+      const isSel   = selectedDay?.d===d && selectedDay?.m===month && selectedDay?.y===year;
+      html += `<div class="cal-day${hasDat?' has-data':''}${isSel?' selected':''}${isToday?' today':''}" onclick="selectDay(${d},${month},${year})">${d}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+
+  window.selectDay = function(d, m, y) {
+    selectedDay = { d, m, y };
+    renderCalendar();
+    const dayStr = new Date(y,m,d).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+    document.getElementById("day-label").textContent = `Entregas del ${dayStr}`;
+
+    const filtered = allEntregas.filter(e => {
+      const raw = e.fechaActualizacion || e.fechaCreacion;
+      if (!raw) return false;
+      const dt = typeof raw==="string" ? new Date(raw) : (raw.toDate ? raw.toDate() : new Date(raw));
+      return dt.getFullYear()===y && dt.getMonth()===m && dt.getDate()===d;
+    });
+
+    const el = document.getElementById("entregas-day");
+    if (filtered.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin entregas ese día</div></div>`;
+      return;
+    }
+    el.innerHTML = filtered.map(e => {
+      const firmaUrl = formatBase64Image(e.firmaBase64, "image/png");
+      return `
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+              <div>
+                <code style="font-size:.75rem;color:var(--primary);">Ruta ${e.id.substring(0,10)}…</code>
+                <div style="font-weight:600;margin-top:4px;">${e.nombreConductor||"—"}</div>
+                <div style="font-size:.8rem;color:var(--slate-500);">${formatDateTime(e.fechaActualizacion||e.fechaCreacion)}</div>
+                ${e.observaciones ? `<div style="font-size:.8rem;margin-top:4px;">${e.observaciones}</div>` : ""}
+              </div>
+              ${estadoBadge(e.estado)}
+            </div>
+            ${e.firmaBase64 ? `<div style="margin-top:10px;"><div style="font-size:.78rem;color:var(--slate-400);margin-bottom:4px;">Firma</div><img src="${firmaUrl}" style="max-height:60px;border-radius:6px;border:1px solid var(--slate-200);"/></div>` : ""}
+          </div>
+        </div>
+      `;
+    }).join("");
+  };
+
+  window.prevMonth = function() { curDate.setMonth(curDate.getMonth()-1); selectedDay=null; renderCalendar(); };
+  window.nextMonth = function() { curDate.setMonth(curDate.getMonth()+1); selectedDay=null; renderCalendar(); };
+</script>
+</body>
+</html>
