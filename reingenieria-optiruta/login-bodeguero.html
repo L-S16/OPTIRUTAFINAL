@@ -27,7 +27,7 @@
         <label class="form-label">Contraseña</label>
         <div style="position:relative;">
           <input id="password" type="password" class="form-control" placeholder="••••••••" required/>
-          <button type="button" onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);cursor:pointer;font-size:.9rem;">👁</button>
+          <button type="button" onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);cursor:pointer;">👁</button>
         </div>
       </div>
       <button type="submit" class="auth-btn" id="btn-login">Ingresar</button>
@@ -37,27 +37,25 @@
   </div>
 </div>
 <script type="module">
-  import { loginBodeguero, resetPassword } from "./js/auth.js";
+  import { loginWithEmail, resetPassword } from "./js/auth.js";
   import { showToast } from "./js/utils.js";
-
   window.handleLogin = async function(e) {
     e.preventDefault();
-    const btn   = document.getElementById("btn-login");
-    const email = document.getElementById("email").value.trim();
-    const pwd   = document.getElementById("password").value;
-    const box   = document.getElementById("alert-box");
+    const btn = document.getElementById("btn-login");
     btn.disabled = true; btn.textContent = "Verificando...";
-    box.innerHTML = "";
+    document.getElementById("alert-box").innerHTML = "";
     try {
-      await loginBodeguero(email, pwd);
+      const { data } = await loginWithEmail(document.getElementById("email").value.trim(), document.getElementById("password").value);
+      // El Flutter original no valida el rol de Bodeguero en 'usuarios', solo valida el estado.
+      // Forzamos el rol local en la sesión para que el dashboard y sidebar web carguen correctamente.
+      localStorage.setItem("or_rol", "Bodeguero");
       showToast("¡Bienvenido, Bodeguero!", "success");
       setTimeout(() => window.location.href = "dashboard-bodeguero.html", 800);
     } catch (err) {
-      box.innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
       btn.disabled = false; btn.textContent = "Ingresar";
     }
   };
-
   window.handleReset = async function(e) {
     e.preventDefault();
     const email = document.getElementById("email").value.trim();
@@ -65,7 +63,6 @@
     try { await resetPassword(email); showToast("Correo enviado ✉️","success"); }
     catch(err) { showToast(err.message,"error"); }
   };
-
   window.togglePwd = function() {
     const f = document.getElementById("password");
     f.type = f.type === "password" ? "text" : "password";

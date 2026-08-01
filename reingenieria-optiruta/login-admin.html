@@ -48,7 +48,7 @@
 </div>
 
 <script type="module">
-  import { loginAdmin, resetPassword } from "./js/auth.js";
+  import { loginWithEmail, resetPassword } from "./js/auth.js";
   import { showToast } from "./js/utils.js";
 
   window.handleLogin = async function(e) {
@@ -62,7 +62,10 @@
     box.innerHTML = "";
 
     try {
-      await loginAdmin(email, pwd);
+      const { data } = await loginWithEmail(email, pwd);
+      if (data.rol !== "Administrador") {
+        throw new Error(`Este acceso es solo para Administradores. Tu rol es: ${data.rol}`);
+      }
       showToast("¡Bienvenido, Administrador!", "success");
       setTimeout(() => { window.location.href = "dashboard-admin.html"; }, 800);
     } catch (err) {
@@ -88,4 +91,3 @@
 </script>
 </body>
 </html>
-
