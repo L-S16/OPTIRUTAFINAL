@@ -69,7 +69,9 @@
       showToast("¡Bienvenido, Administrador!", "success");
       setTimeout(() => { window.location.href = "dashboard-admin.html"; }, 800);
     } catch (err) {
-      box.innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      console.error("Error completo en Login:", err);
+      const detail = err.code ? `[${err.code}] ` : "";
+      box.innerHTML = `<div class="alert alert-danger">⚠️ ${detail}${err.message}</div>`;
       btn.disabled = false; btn.textContent = "Ingresar al Panel";
     }
   };
