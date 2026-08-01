@@ -90,7 +90,7 @@
 
 <script type="module">
   import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
-  import { initSidebar, estadoBadge, formatDateTime } from "./js/utils.js";
+  import { initSidebar, estadoBadge, formatDateTime, formatBase64Image } from "./js/utils.js";
   import { getHistorialConductor } from "./js/rutas.js";
 
   if (!requireAuth("Conductor")) throw new Error("No autorizado");
@@ -163,22 +163,25 @@
       el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">Sin entregas ese día</div></div>`;
       return;
     }
-    el.innerHTML = filtered.map(e => `
-      <div class="card" style="margin-bottom:12px;">
-        <div class="card-body">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-            <div>
-              <code style="font-size:.75rem;color:var(--primary);">Ruta ${e.id.substring(0,10)}…</code>
-              <div style="font-weight:600;margin-top:4px;">${e.nombreConductor||"—"}</div>
-              <div style="font-size:.8rem;color:var(--slate-500);">${formatDateTime(e.fechaActualizacion||e.fechaCreacion)}</div>
-              ${e.observaciones ? `<div style="font-size:.8rem;margin-top:4px;">${e.observaciones}</div>` : ""}
+    el.innerHTML = filtered.map(e => {
+      const firmaUrl = formatBase64Image(e.firmaBase64, "image/png");
+      return `
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+              <div>
+                <code style="font-size:.75rem;color:var(--primary);">Ruta ${e.id.substring(0,10)}…</code>
+                <div style="font-weight:600;margin-top:4px;">${e.nombreConductor||"—"}</div>
+                <div style="font-size:.8rem;color:var(--slate-500);">${formatDateTime(e.fechaActualizacion||e.fechaCreacion)}</div>
+                ${e.observaciones ? `<div style="font-size:.8rem;margin-top:4px;">${e.observaciones}</div>` : ""}
+              </div>
+              ${estadoBadge(e.estado)}
             </div>
-            ${estadoBadge(e.estado)}
+            ${e.firmaBase64 ? `<div style="margin-top:10px;"><div style="font-size:.78rem;color:var(--slate-400);margin-bottom:4px;">Firma</div><img src="${firmaUrl}" style="max-height:60px;border-radius:6px;border:1px solid var(--slate-200);"/></div>` : ""}
           </div>
-          ${e.firmaBase64 ? `<div style="margin-top:10px;"><div style="font-size:.78rem;color:var(--slate-400);margin-bottom:4px;">Firma</div><img src="${e.firmaBase64}" style="max-height:60px;border-radius:6px;border:1px solid var(--slate-200);"/></div>` : ""}
         </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   };
 
   window.prevMonth = function() { curDate.setMonth(curDate.getMonth()-1); selectedDay=null; renderCalendar(); };

@@ -5,7 +5,7 @@ import { db } from "./firebase-config.js";
 import {
   collection, getDocs, query, orderBy, where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { formatDateTime, estadoBadge } from "./utils.js";
+import { formatDateTime, estadoBadge, formatBase64Image } from "./utils.js";
 
 // ── Obtener datos para el reporte ─────────────────────────────
 export async function getReporteData() {
@@ -136,14 +136,16 @@ export async function exportarPDFEntrega(entrega, pedido) {
     y += 4;
     pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139); pdf.setFontSize(9);
     pdf.text("Firma del Cliente:", 15, y); y += 6;
-    try { pdf.addImage(entrega.firmaBase64, "PNG", 15, y, 80, 40); y += 46; } catch(e){}
+    const imgData = formatBase64Image(entrega.firmaBase64, "image/png");
+    try { pdf.addImage(imgData, "PNG", 15, y, 80, 40); y += 46; } catch(e){ console.error("Error firma PDF:", e); }
   }
   // Foto
   if (entrega.fotoBase64) {
     y += 4;
     pdf.setFont("helvetica","bold"); pdf.setTextColor(100,116,139); pdf.setFontSize(9);
     pdf.text("Foto Evidencia:", 15, y); y += 6;
-    try { pdf.addImage(entrega.fotoBase64, "JPEG", 15, y, 80, 60); } catch(e){}
+    const imgData = formatBase64Image(entrega.fotoBase64, "image/jpeg");
+    try { pdf.addImage(imgData, "JPEG", 15, y, 80, 60); } catch(e){ console.error("Error foto PDF:", e); }
   }
 
   pdf.save(`optiruta_entrega_${entrega.id}.pdf`);

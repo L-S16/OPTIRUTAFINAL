@@ -125,7 +125,7 @@
 
 <script type="module">
   import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
-  import { initSidebar, initTabs, estadoBadge, formatDateTime, showToast, openModal, closeModal, bindModalClose } from "./js/utils.js";
+  import { initSidebar, initTabs, estadoBadge, formatDateTime, showToast, openModal, closeModal, bindModalClose, formatBase64Image } from "./js/utils.js";
   import { listenPedidos, getPedido } from "./js/pedidos.js";
   import { listenTodasRutas } from "./js/rutas.js";
   import { getReporteData, calcularKPIs, exportarPDFGeneral, exportarPDFEntrega } from "./js/reportes.js";
@@ -200,6 +200,10 @@
     if (!e) return;
     currentEntrega = e;
     currentPedido  = (e.pedidos||[]).length > 0 ? await getPedido(e.pedidos[0]) : null;
+    
+    const firmaUrl = formatBase64Image(e.firmaBase64, "image/png");
+    const fotoUrl  = formatBase64Image(e.fotoBase64, "image/jpeg");
+
     document.getElementById("modal-entrega-body").innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div><div style="font-size:.78rem;color:var(--slate-500);">Conductor</div><div style="font-weight:600;">${e.nombreConductor||"—"}</div></div>
@@ -208,8 +212,8 @@
         <div><div style="font-size:.78rem;color:var(--slate-500);">Cajas Devueltas</div><div style="font-weight:600;">${e.cajasDevueltas||0}</div></div>
       </div>
       <div style="margin-bottom:12px;"><div style="font-size:.78rem;color:var(--slate-500);">Observaciones</div><div>${e.observaciones||"—"}</div></div>
-      ${e.firmaBase64 ? `<div style="margin-bottom:12px;"><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Firma Digital</div><img src="${e.firmaBase64}" style="max-width:100%;border:1px solid var(--slate-200);border-radius:8px;"/></div>` : ""}
-      ${e.fotoBase64  ? `<div><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Foto Evidencia</div><img src="${e.fotoBase64}" style="max-width:100%;border-radius:8px;"/></div>` : ""}
+      ${e.firmaBase64 ? `<div style="margin-bottom:12px;"><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Firma Digital</div><img src="${firmaUrl}" style="max-height:100px;border:1px solid var(--slate-200);border-radius:8px;"/></div>` : ""}
+      ${e.fotoBase64  ? `<div><div style="font-size:.78rem;color:var(--slate-500);margin-bottom:4px;">Foto Evidencia</div><img src="${fotoUrl}" style="max-height:180px;border-radius:8px;object-fit:contain;"/></div>` : ""}
     `;
     openModal("modal-entrega");
   };

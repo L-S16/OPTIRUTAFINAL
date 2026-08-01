@@ -147,3 +147,10 @@ export function generateId(prefix = "PED") {
 export function confirmAction(msg, cb) {
   if (window.confirm(msg)) cb();
 }
+
+// ── Formatear imágenes Base64 ──────────────────────────────────
+export function formatBase64Image(base64Str, defaultMime = "image/png") {
+  if (!base64Str) return "";
+  if (base64Str.startsWith("data:image/")) return base64Str;
+  return `data:${defaultMime};base64,${base64Str}`;
+}
