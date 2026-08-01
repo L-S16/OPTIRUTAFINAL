@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Clasificar Pedidos por Zona</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .zona-group { margin-bottom:20px; }
+    .zona-header {
+      display:flex;align-items:center;gap:10px;
+      padding:10px 16px;border-radius:var(--radius-sm);
+      font-weight:700;font-size:.9rem;margin-bottom:8px;
+    }
+    .zona-tag  { padding:2px 10px;border-radius:99px;font-size:.75rem;font-weight:700; }
+    .pedido-item {
+      display:flex;align-items:center;gap:12px;
+      padding:12px 16px;background:white;
+      border:1px solid var(--slate-200);border-radius:var(--radius-sm);
+      margin-bottom:6px;cursor:pointer;transition:all var(--transition);
+    }
+    .pedido-item:hover { border-color:var(--primary);background:var(--primary-10); }
+    .pedido-check { width:18px;height:18px;border-radius:4px;border:2px solid var(--slate-300);flex-shrink:0;cursor:pointer; }
+    .pedido-item.selected .pedido-check { background:var(--primary);border-color:var(--primary); }
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item active" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar Zonas</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Clasificar Zonas</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🗂️ Clasificar Pedidos por Zona</h1>
+      <p style="margin:0;">Agrupa automáticamente los pedidos según su zona geográfica</p>
+    </div>
+    <button class="btn btn-primary" id="btn-clasificar">⚡ Clasificar Automáticamente</button>
+  </div>
+
+  <div id="alert-box"></div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-body">
+      <p style="margin:0;font-size:.9rem;">La clasificación automática analiza las direcciones y asigna una zona (Norte, Sur, Este, Oeste, Centro) a todos los pedidos sin clasificar. También puedes seleccionar pedidos y asignarles una zona manualmente.</p>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+    <span style="font-size:.875rem;color:var(--slate-600);">Asignar zona manualmente a seleccionados:</span>
+    <select id="manual-zona" class="filter-select">
+      <option value="">Selecciona zona</option>
+      <option>Norte</option><option>Sur</option><option>Este</option>
+      <option>Oeste</option><option>Centro</option><option>Sin Clasificar</option>
+    </select>
+    <button class="btn btn-sm btn-outline" id="btn-asignar-manual">Asignar</button>
+    <span id="selected-count" style="font-size:.8rem;color:var(--slate-500);"></span>
+  </div>
+
+  <div id="zonas-container">
+    <div class="empty-state"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, prioridadBadge } from "./js/utils.js";
+  import { listenPedidos, actualizarPedido, clasificarTodosPedidos } from "./js/pedidos.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const ZONAS   = ["Norte","Sur","Este","Oeste","Centro","Sin Clasificar"];
+  const COLORS  = { Norte:"#3B82F6",Sur:"#10B981",Este:"#F59E0B",Oeste:"#8B5CF6",Centro:"#EF4444","Sin Clasificar":"#94A3B8" };
+  let allPedidos = [];
+  let selected   = new Set();
+
+  listenPedidos(pedidos => {
+    allPedidos = pedidos.filter(p => p.estado === "Pendiente" || !p.zona);
+    renderZonas();
+  });
+
+  function renderZonas() {
+    const container = document.getElementById("zonas-container");
+    if (allPedidos.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Todos los pedidos están clasificados</div></div>`;
+      return;
+    }
+    const grouped = {};
+    ZONAS.forEach(z => grouped[z] = []);
+    allPedidos.forEach(p => { const z = p.zona||"Sin Clasificar"; if (grouped[z]) grouped[z].push(p); });
+
+    container.innerHTML = ZONAS.map(zona => {
+      const items = grouped[zona];
+      if (items.length === 0) return "";
+      const color = COLORS[zona] || "#94A3B8";
+      return `
+        <div class="zona-group fade-up">
+          <div class="zona-header" style="background:${color}18;border-left:4px solid ${color};">
+            <span style="color:${color};">●</span>
+            <span style="color:${color};">${zona}</span>
+            <span class="zona-tag" style="background:${color};color:white;">${items.length} pedido(s)</span>
+          </div>
+          ${items.map(p => `
+            <div class="pedido-item ${selected.has(p.id)?'selected':''}" onclick="toggleSelect('${p.id}')">
+              <div class="pedido-check" id="chk-${p.id}">${selected.has(p.id)?'✓':''}</div>
+              <div style="flex:1;">
+                <strong style="font-size:.875rem;">${p.cliente||p.id}</strong>
+                <div style="font-size:.78rem;color:var(--slate-500);">${p.direccion||"—"}</div>
+              </div>
+              ${prioridadBadge(p.prioridad||"—")}
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }).join("");
+    document.getElementById("selected-count").textContent = selected.size > 0 ? `${selected.size} seleccionado(s)` : "";
+  }
+
+  window.toggleSelect = function(id) {
+    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    renderZonas();
+  };
+
+  document.getElementById("btn-clasificar").onclick = async function() {
+    const btn = this;
+    btn.disabled = true; btn.textContent = "Clasificando…";
+    try {
+      const n = await clasificarTodosPedidos();
+      showToast(`${n} pedido(s) clasificados correctamente ✅`, "success");
+    } catch(e) { showToast(e.message,"error"); }
+    btn.disabled = false; btn.textContent = "⚡ Clasificar Automáticamente";
+  };
+
+  document.getElementById("btn-asignar-manual").onclick = async function() {
+    const zona = document.getElementById("manual-zona").value;
+    if (!zona) { showToast("Selecciona una zona","warning"); return; }
+    if (selected.size === 0) { showToast("Selecciona al menos un pedido","warning"); return; }
+    try {
+      await Promise.all([...selected].map(id => actualizarPedido(id, { zona })));
+      showToast(`${selected.size} pedido(s) asignados a ${zona} ✅`,"success");
+      selected.clear();
+    } catch(e) { showToast(e.message,"error"); }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Editar Pedido</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar Zonas</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Editar Pedido</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">✏️ Editar Pedido</h1>
+      <p style="margin:0;">Modifica los datos del pedido <strong id="pedido-id-label"></strong></p>
+    </div>
+    <a href="dashboard-bodeguero.html" class="btn btn-secondary">← Volver</a>
+  </div>
+
+  <div id="loading-wrap" class="card" style="max-width:700px;">
+    <div class="card-body"><div class="empty-state"><div class="spinner"></div><div class="empty-title">Cargando pedido…</div></div></div>
+  </div>
+
+  <div class="card" id="form-wrap" style="max-width:700px;display:none;">
+    <div class="card-body">
+      <div id="alert-box"></div>
+      <form id="form-pedido" onsubmit="handleSubmit(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Cliente *</label>
+            <input id="cliente" class="form-control" type="text" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono</label>
+            <input id="telefono" class="form-control" type="tel"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dirección *</label>
+          <input id="direccion" class="form-control" type="text" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Detalle</label>
+          <textarea id="detalle" class="form-control"></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Número de Cajas *</label>
+            <input id="numeroCajas" class="form-control" type="number" min="1" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prioridad *</label>
+            <select id="prioridad" class="form-control" required>
+              <option value="Alta">🔴 Alta</option>
+              <option value="Media">🟡 Media</option>
+              <option value="Baja">🟢 Baja</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="estado" class="form-control">
+            <option>Pendiente</option><option>Asignado</option>
+            <option>En Ruta</option><option>Entregado</option><option>No entregado</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+          <a href="dashboard-bodeguero.html" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary" id="btn-submit">💾 Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast } from "./js/utils.js";
+  import { getPedido, actualizarPedido } from "./js/pedidos.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const params  = new URLSearchParams(window.location.search);
+  const pedidoId = params.get("id");
+  document.getElementById("pedido-id-label").textContent = pedidoId || "";
+
+  (async () => {
+    if (!pedidoId) { window.location.href = "dashboard-bodeguero.html"; return; }
+    const p = await getPedido(pedidoId);
+    if (!p) { showToast("Pedido no encontrado","error"); window.location.href = "dashboard-bodeguero.html"; return; }
+
+    document.getElementById("loading-wrap").style.display = "none";
+    document.getElementById("form-wrap").style.display    = "block";
+
+    document.getElementById("cliente").value     = p.cliente     || "";
+    document.getElementById("telefono").value    = p.telefono    || "";
+    document.getElementById("direccion").value   = p.direccion   || "";
+    document.getElementById("detalle").value     = p.detalle     || "";
+    document.getElementById("numeroCajas").value = p.numeroCajas || 1;
+    document.getElementById("prioridad").value   = p.prioridad   || "Media";
+    document.getElementById("estado").value      = p.estado      || "Pendiente";
+  })();
+
+  window.handleSubmit = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit");
+    btn.disabled = true; btn.textContent = "Guardando…";
+    try {
+      await actualizarPedido(pedidoId, {
+        cliente:     document.getElementById("cliente").value.trim(),
+        telefono:    document.getElementById("telefono").value.trim(),
+        direccion:   document.getElementById("direccion").value.trim(),
+        detalle:     document.getElementById("detalle").value.trim(),
+        numeroCajas: Number(document.getElementById("numeroCajas").value),
+        prioridad:   document.getElementById("prioridad").value,
+        estado:      document.getElementById("estado").value,
+      });
+      showToast("Pedido actualizado correctamente ✅","success");
+      setTimeout(() => window.location.href = "dashboard-bodeguero.html", 1000);
+    } catch(err) {
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      btn.disabled = false; btn.textContent = "💾 Guardar Cambios";
+    }
+  };
+</script>
+</body>
+</html>

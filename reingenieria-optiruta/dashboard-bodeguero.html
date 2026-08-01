@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Dashboard Bodeguero</title>
+  <meta name="description" content="Panel de gestión de pedidos del Bodeguero de OPTIRUTA"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="assets/logo_optiruta.png" alt="Logo" onerror="this.style.display='none'" style="width:32px;height:32px;object-fit:contain;"/>
+    <span>OPTIRUTA</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Principal</div>
+    <a class="nav-item active" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="inventario.html"><span class="nav-icon">📋</span> Inventario</a>
+    <div class="nav-section-title" style="margin-top:12px;">Pedidos</div>
+    <a class="nav-item" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar por Zona</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name">Bodeguero</div>
+        <div class="user-role" id="sidebar-user-role">Bodeguero</div>
+      </div>
+      <button onclick="doLogout()" title="Cerrar sesión" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Pedidos</strong></span>
+  </div>
+  <div class="topbar-right">
+    <a href="registrar-pedido.html" class="btn btn-sm btn-primary">➕ Nuevo Pedido</a>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gestión de Pedidos</h1>
+      <p style="margin:0;">Bienvenido, <strong id="bode-name"></strong></p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <a href="clasificar-pedidos.html" class="btn btn-outline">🗂️ Clasificar Zonas</a>
+      <a href="asignar-conductor.html"  class="btn btn-secondary">🚛 Asignar Conductor</a>
+    </div>
+  </div>
+
+  <!-- KPIs rápidos -->
+  <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:20px;">
+    <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-info"><div class="stat-value" id="kpi-total">—</div><div class="stat-label">Total</div></div></div>
+    <div class="stat-card"><div class="stat-icon warning">⏳</div><div class="stat-info"><div class="stat-value" id="kpi-pend">—</div><div class="stat-label">Pendientes</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🚚</div><div class="stat-info"><div class="stat-value" id="kpi-ruta">—</div><div class="stat-label">En Ruta</div></div></div>
+    <div class="stat-card"><div class="stat-icon success">✅</div><div class="stat-info"><div class="stat-value" id="kpi-done">—</div><div class="stat-label">Entregados</div></div></div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filters-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="q-search" type="text" placeholder="Buscar cliente, dirección…" oninput="renderTabla()"/>
+    </div>
+    <select class="filter-select" id="f-estado" onchange="renderTabla()">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>Asignado</option>
+      <option>En Ruta</option><option>Entregado</option><option>No entregado</option>
+    </select>
+    <select class="filter-select" id="f-prio" onchange="renderTabla()">
+      <option value="">Toda prioridad</option>
+      <option>Alta</option><option>Media</option><option>Baja</option>
+    </select>
+    <select class="filter-select" id="f-zona" onchange="renderTabla()">
+      <option value="">Toda zona</option>
+      <option>Norte</option><option>Sur</option><option>Este</option>
+      <option>Oeste</option><option>Centro</option><option>Sin Clasificar</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Limpiar</button>
+  </div>
+
+  <!-- Tabla -->
+  <div class="card">
+    <div class="card-body" style="padding:0;">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>Dirección</th>
+              <th>Cajas</th>
+              <th>Prioridad</th>
+              <th>Zona</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-pedidos">
+            <tr><td colspan="9"><div class="empty-state"><div class="spinner"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal eliminar -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Confirmar Eliminación</span>
+      <div class="modal-close" data-modal-close="modal-eliminar">✕</div>
+    </div>
+    <div class="modal-body">
+      <p>¿Estás seguro de que deseas eliminar el pedido <strong id="del-id"></strong>? Esta acción no se puede deshacer.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close="modal-eliminar">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirm-del">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
+  import { initSidebar, estadoBadge, prioridadBadge, formatDate, showToast, openModal, closeModal, bindModalClose } from "./js/utils.js";
+  import { listenPedidos, eliminarPedido } from "./js/pedidos.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  bindModalClose();
+  document.getElementById("bode-name").textContent = getSession().name || "Bodeguero";
+  window.doLogout = logout;
+
+  let allPedidos = [];
+
+  listenPedidos(pedidos => {
+    allPedidos = pedidos;
+    // KPIs
+    document.getElementById("kpi-total").textContent = pedidos.length;
+    document.getElementById("kpi-pend").textContent  = pedidos.filter(p=>p.estado==="Pendiente").length;
+    document.getElementById("kpi-ruta").textContent  = pedidos.filter(p=>p.estado==="En Ruta"||p.estado==="Asignado").length;
+    document.getElementById("kpi-done").textContent  = pedidos.filter(p=>p.estado==="Entregado").length;
+    window.renderTabla();
+  });
+
+  window.renderTabla = function() {
+    const q     = document.getElementById("q-search").value.toLowerCase();
+    const est   = document.getElementById("f-estado").value;
+    const prio  = document.getElementById("f-prio").value;
+    const zona  = document.getElementById("f-zona").value;
+    let filtered = allPedidos.filter(p => {
+      const matchQ = !q || (p.cliente||"").toLowerCase().includes(q) || (p.direccion||"").toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+      const matchE = !est  || p.estado === est;
+      const matchP = !prio || p.prioridad === prio;
+      const matchZ = !zona || (p.zona||"Sin Clasificar") === zona;
+      return matchQ && matchE && matchP && matchZ;
+    });
+    const tbody = document.getElementById("tabla-pedidos");
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No hay pedidos</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = filtered.map(p => `
+      <tr>
+        <td><code style="font-size:.75rem;color:var(--primary);">${p.id}</code></td>
+        <td><strong>${p.cliente||"—"}</strong></td>
+        <td><span style="font-size:.82rem;color:var(--slate-600);">${(p.direccion||"—").substring(0,30)}${(p.direccion||"").length>30?"…":""}</span></td>
+        <td>${p.numeroCajas||0}</td>
+        <td>${prioridadBadge(p.prioridad||"—")}</td>
+        <td><span class="chip">${p.zona||"Sin Clasificar"}</span></td>
+        <td>${estadoBadge(p.estado||"Pendiente")}</td>
+        <td style="font-size:.8rem;color:var(--slate-500);">${formatDate(p.fechaCreacion)}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <a href="editar-pedido.html?id=${encodeURIComponent(p.id)}" class="btn btn-sm btn-ghost" title="Editar">✏️</a>
+            <button class="btn btn-sm btn-ghost" title="Eliminar" onclick="abrirEliminar('${p.id}')">🗑️</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  };
+
+  window.clearFilters = function() {
+    ["q-search","f-estado","f-prio","f-zona"].forEach(id => { document.getElementById(id).value=""; });
+    window.renderTabla();
+  };
+
+  let pendingDelId = null;
+  window.abrirEliminar = function(id) {
+    pendingDelId = id;
+    document.getElementById("del-id").textContent = id;
+    openModal("modal-eliminar");
+  };
+  document.getElementById("btn-confirm-del").onclick = async function() {
+    if (!pendingDelId) return;
+    try {
+      await eliminarPedido(pendingDelId);
+      showToast("Pedido eliminado correctamente","success");
+      closeModal("modal-eliminar");
+    } catch(e) { showToast(e.message,"error"); }
+    pendingDelId = null;
+  };
+</script>
+</body>
+</html>

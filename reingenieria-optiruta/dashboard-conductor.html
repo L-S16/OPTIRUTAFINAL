@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Dashboard Conductor</title>
+  <meta name="description" content="Panel del conductor de OPTIRUTA: rutas activas y entregas"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .ruta-card {
+      border:1px solid var(--slate-200); border-radius:var(--radius-lg);
+      padding:20px; background:white; cursor:pointer;
+      transition:all var(--transition); display:flex; gap:16px; align-items:flex-start;
+    }
+    .ruta-card:hover { border-color:var(--primary); box-shadow:var(--shadow); transform:translateY(-2px); }
+    .ruta-icon-wrap {
+      width:52px;height:52px;border-radius:var(--radius);
+      background:var(--primary-10); display:flex;align-items:center;
+      justify-content:center;font-size:1.6rem;flex-shrink:0;
+    }
+    .ruta-num { font-size:1.1rem;font-weight:700;color:var(--slate-900); }
+    .ruta-meta { font-size:.82rem;color:var(--slate-500);margin-top:4px; }
+    .notification-banner {
+      background:linear-gradient(135deg,var(--primary),var(--primary-light));
+      color:white;padding:14px 20px;border-radius:var(--radius-sm);
+      display:flex;align-items:center;gap:12px;margin-bottom:20px;
+      animation:fadeUp .4s ease;
+    }
+    .notification-banner .close-btn { margin-left:auto;cursor:pointer;font-size:1.1rem;opacity:.8; }
+    .notification-banner .close-btn:hover { opacity:1; }
+  </style>
+</head>
+<body>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <img src="assets/logo_optiruta.png" alt="Logo" onerror="this.style.display='none'" style="width:32px;height:32px;object-fit:contain;"/>
+    <span>OPTIRUTA</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-title">Mi Panel</div>
+    <a class="nav-item active" href="dashboard-conductor.html"><span class="nav-icon">🏠</span> Mis Rutas</a>
+    <a class="nav-item" href="historial-entregas.html"><span class="nav-icon">📋</span> Historial</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">C</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-user-name">Conductor</div>
+        <div class="user-role" id="sidebar-user-role">Conductor</div>
+      </div>
+      <button onclick="doLogout()" title="Cerrar sesión" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Conductor · <strong>Mis Rutas</strong></span>
+  </div>
+  <div class="topbar-right">
+    <a href="historial-entregas.html" class="btn btn-sm btn-secondary">📋 Historial</a>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Bienvenido, <span id="conductor-name"></span></h1>
+      <p style="margin:0;">Aquí están tus rutas activas y asignadas</p>
+    </div>
+  </div>
+
+  <!-- Notificación en tiempo real -->
+  <div id="notif-banner" style="display:none;">
+    <div class="notification-banner">
+      <span>🔔</span>
+      <div>
+        <strong>¡Nueva ruta asignada!</strong>
+        <div id="notif-text" style="font-size:.85rem;opacity:.85;"></div>
+      </div>
+      <span class="close-btn" onclick="document.getElementById('notif-banner').style.display='none'">✕</span>
+    </div>
+  </div>
+
+  <!-- Lista de rutas -->
+  <div style="display:flex;flex-direction:column;gap:14px;" id="rutas-list">
+    <div class="empty-state"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
+  import { initSidebar, estadoBadge, formatDate, showToast } from "./js/utils.js";
+  import { listenRutasConductor } from "./js/rutas.js";
+
+  if (!requireAuth("Conductor")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const session = getSession();
+  document.getElementById("conductor-name").textContent = (session.name||"Conductor").split(" ")[0];
+
+  let prevRutasCount = -1;
+
+  listenRutasConductor(session.uid, rutas => {
+    const activas = rutas.filter(r => ["Asignado","En Ruta","Pendiente"].includes(r.estado));
+    const lista   = document.getElementById("rutas-list");
+
+    // Notificación de nueva ruta
+    if (prevRutasCount !== -1 && activas.length > prevRutasCount) {
+      const nueva = activas[0];
+      document.getElementById("notif-text").textContent = `Ruta #${nueva.numeroRuta||nueva.id} — ${nueva.estado}`;
+      document.getElementById("notif-banner").style.display = "block";
+      showToast("¡Nueva ruta asignada! Revisa tu panel.", "success");
+    }
+    prevRutasCount = activas.length;
+
+    if (activas.length === 0) {
+      lista.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🎉</div>
+          <div class="empty-title">Sin rutas activas</div>
+          <div class="empty-desc">Cuando el bodeguero te asigne una ruta, aparecerá aquí en tiempo real.</div>
+        </div>`;
+      return;
+    }
+
+    lista.innerHTML = activas.map(r => `
+      <div class="ruta-card fade-up" onclick="irARuta('${r.id}')">
+        <div class="ruta-icon-wrap">🚛</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span class="ruta-num">Ruta #${r.numeroRuta||r.id.substring(0,8)}</span>
+            ${estadoBadge(r.estado)}
+          </div>
+          <div class="ruta-meta">
+            📦 ${(r.pedidos||[]).length} pedido(s) · 📅 ${formatDate(r.fechaCreacion)}
+          </div>
+          <div class="ruta-meta" style="margin-top:6px;">
+            Toca para ver detalles y navegar al destino →
+          </div>
+        </div>
+        <div style="color:var(--primary);font-size:1.2rem;">›</div>
+      </div>
+    `).join("");
+  });
+
+  window.irARuta = function(rutaId) {
+    window.location.href = `ruta-conductor.html?id=${encodeURIComponent(rutaId)}`;
+  };
+</script>
+</body>
+</html>

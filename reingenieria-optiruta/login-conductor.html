@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Acceso Conductor</title>
+  <meta name="description" content="Login del Conductor de OPTIRUTA"/>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="auth-bg">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="assets/logo_optiruta.png" alt="Logo" onerror="this.style.display='none'"/>
+      <h1>OPTIRUTA</h1>
+      <p>Módulo de Conductor</p>
+    </div>
+    <h2 class="auth-title">🚛 Conductor</h2>
+    <p class="auth-sub">Accede para ver tus rutas y confirmar entregas</p>
+    <div id="alert-box"></div>
+    <form class="auth-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label">Correo Electrónico</label>
+        <input id="email" type="email" class="form-control" placeholder="conductor@optiruta.com" required/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <div style="position:relative;">
+          <input id="password" type="password" class="form-control" placeholder="••••••••" required/>
+          <button type="button" onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.5);cursor:pointer;">👁</button>
+        </div>
+      </div>
+      <button type="submit" class="auth-btn" id="btn-login">Ingresar</button>
+    </form>
+    <p class="auth-link"><a href="#" onclick="handleReset(event)">¿Olvidaste tu contraseña?</a></p>
+    <p class="auth-link" style="margin-top:8px;"><a href="index.html">← Volver</a></p>
+  </div>
+</div>
+<script type="module">
+  import { loginWithEmail, resetPassword } from "./js/auth.js";
+  import { showToast } from "./js/utils.js";
+  window.handleLogin = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-login");
+    btn.disabled = true; btn.textContent = "Verificando...";
+    document.getElementById("alert-box").innerHTML = "";
+    try {
+      const { data } = await loginWithEmail(document.getElementById("email").value.trim(), document.getElementById("password").value);
+      if (data.rol !== "Conductor") throw new Error(`Acceso denegado. Tu rol es: ${data.rol}`);
+      showToast("¡Bienvenido, Conductor!", "success");
+      setTimeout(() => window.location.href = "dashboard-conductor.html", 800);
+    } catch (err) {
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      btn.disabled = false; btn.textContent = "Ingresar";
+    }
+  };
+  window.handleReset = async function(e) {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    if (!email) { showToast("Escribe tu correo primero","warning"); return; }
+    try { await resetPassword(email); showToast("Correo enviado ✉️","success"); }
+    catch(err) { showToast(err.message,"error"); }
+  };
+  window.togglePwd = function() {
+    const f = document.getElementById("password");
+    f.type = f.type === "password" ? "text" : "password";
+  };
+</script>
+</body>
+</html>

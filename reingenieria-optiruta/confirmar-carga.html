@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Confirmar Carga</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item active" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Confirmar Carga</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">✅ Confirmar Carga de Rutas</h1>
+    <a href="dashboard-bodeguero.html" class="btn btn-secondary">← Volver</a>
+  </div>
+
+  <div class="alert alert-info" style="margin-bottom:20px;">
+    ℹ️ Al confirmar la carga, el estado de la ruta cambia a <strong>"En Ruta"</strong>, lo que notifica al conductor para iniciar el recorrido.
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">📋 Rutas Asignadas (pendientes de salida)</span></div>
+    <div class="card-body" style="padding:0;">
+      <div id="rutas-list" style="padding:12px;">
+        <div class="empty-state"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, formatDate } from "./js/utils.js";
+  import { listenTodasRutas, confirmarCarga } from "./js/rutas.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  listenTodasRutas(rutas => {
+    const asignadas = rutas.filter(r => r.estado === "Asignado");
+    const el = document.getElementById("rutas-list");
+    if (asignadas.length === 0) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">Sin rutas pendientes de confirmar</div><div class="empty-desc">Todas las rutas asignadas ya están en ruta o completadas.</div></div>`;
+      return;
+    }
+    el.innerHTML = asignadas.map(r => `
+      <div style="display:flex;align-items:center;gap:16px;padding:16px;border:1px solid var(--slate-200);border-radius:12px;margin-bottom:10px;background:white;">
+        <div style="width:48px;height:48px;border-radius:10px;background:var(--primary-10);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">🚛</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:.95rem;">Ruta #${r.numeroRuta||r.id.substring(0,8)}</div>
+          <div style="font-size:.82rem;color:var(--slate-500);">Conductor: ${r.nombreConductor||"—"}</div>
+          <div style="font-size:.82rem;color:var(--slate-500);">📦 ${(r.pedidos||[]).length} pedido(s) · 📅 ${formatDate(r.fechaCreacion)}</div>
+        </div>
+        <button class="btn btn-success" onclick="confirmar('${r.id}',this,[${(r.pedidos||[]).map(p=>`'${p}'`).join(",")}])">
+          🚀 Confirmar Carga
+        </button>
+      </div>
+    `).join("");
+  });
+
+  window.confirmar = async function(rutaId, btn, pedidosIds) {
+    btn.disabled = true; btn.textContent = "Confirmando…";
+    try {
+      await confirmarCarga(rutaId, pedidosIds);
+      showToast("¡Ruta marcada como En Ruta! El conductor fue notificado. 🚀","success");
+    } catch(e) {
+      showToast(e.message,"error");
+      btn.disabled = false; btn.textContent = "🚀 Confirmar Carga";
+    }
+  };
+</script>
+</body>
+</html>

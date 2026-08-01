@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Confirmar Entrega</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .signature-wrapper {
+      border:2px dashed var(--slate-300);border-radius:var(--radius-sm);
+      background:var(--slate-50);overflow:hidden;cursor:crosshair;
+    }
+    #signature-canvas { display:block;width:100%;touch-action:none; }
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-conductor.html"><span class="nav-icon">🏠</span> Mis Rutas</a>
+    <a class="nav-item" href="historial-entregas.html"><span class="nav-icon">📋</span> Historial</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">C</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Conductor</div><div class="user-role" id="sidebar-user-role">Conductor</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Conductor · <strong>Confirmar Entrega</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1 class="page-title">✅ Confirmar Entrega</h1>
+    <button class="btn btn-secondary" onclick="history.back()">← Volver</button>
+  </div>
+
+  <div id="alert-box"></div>
+
+  <div class="card" style="max-width:700px;">
+    <div class="card-body">
+      <form id="form-entrega" onsubmit="handleSave(event)">
+
+        <!-- Estado de la entrega -->
+        <div class="form-group">
+          <label class="form-label">Estado de la Entrega *</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;" id="estado-btns">
+            <button type="button" class="btn btn-success" id="btn-entregado" onclick="setEstado('Entregado')">
+              ✅ Entregado
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-no-entregado" onclick="setEstado('No entregado')">
+              ❌ No Entregado
+            </button>
+          </div>
+        </div>
+
+        <!-- Panel: Entregado -->
+        <div id="panel-entregado" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Firma Digital del Cliente *</label>
+            <div class="signature-wrapper">
+              <canvas id="signature-canvas" height="180"></canvas>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;">
+              <button type="button" class="btn btn-sm btn-ghost" onclick="clearCanvas()">🗑️ Limpiar Firma</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Foto de Evidencia (Fachada) *</label>
+            <input id="foto-input" type="file" accept="image/*" capture="environment" class="form-control"/>
+            <div id="foto-preview" style="margin-top:8px;display:none;">
+              <img id="foto-img" style="max-width:200px;border-radius:8px;border:1px solid var(--slate-200);"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: No entregado -->
+        <div id="panel-no-entregado" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Motivo del Rechazo *</label>
+            <textarea id="observaciones" class="form-control" placeholder="Describe el motivo (cliente ausente, dirección incorrecta…)" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cajas Devueltas</label>
+            <input id="cajasDevueltas" class="form-control" type="number" min="0" value="0"/>
+          </div>
+        </div>
+
+        <!-- Observaciones generales -->
+        <div class="form-group" id="obs-general" style="display:none;">
+          <label class="form-label">Observaciones Adicionales</label>
+          <textarea id="obs-extra" class="form-control" placeholder="Notas adicionales…" rows="2"></textarea>
+        </div>
+
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+          <button type="button" class="btn btn-secondary" onclick="history.back()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save" disabled>💾 Guardar Entrega</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout, getSession } from "./js/auth.js";
+  import { initSidebar, showToast } from "./js/utils.js";
+  import { registrarEntrega } from "./js/rutas.js";
+
+  if (!requireAuth("Conductor")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  const params  = new URLSearchParams(window.location.search);
+  const rutaId  = params.get("rutaId");
+  const session = getSession();
+  let currentEstado = null;
+  let firmaBase64   = null;
+  let fotoBase64    = null;
+
+  // ── Canvas de firma ───────────────────────────────────────
+  const canvas  = document.getElementById("signature-canvas");
+  const ctx     = canvas.getContext("2d");
+  let drawing   = false;
+  let lastX=0, lastY=0;
+
+  function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width;
+    canvas.height = 180;
+    ctx.strokeStyle = "#0F172A"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  }
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
+
+  function getPos(e, canv) {
+    const r = canv.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return [t.clientX - r.left, t.clientY - r.top];
+  }
+  canvas.addEventListener("mousedown",  e => { drawing=true; [lastX,lastY]=getPos(e,canvas); });
+  canvas.addEventListener("touchstart", e => { e.preventDefault(); drawing=true; [lastX,lastY]=getPos(e,canvas); });
+  canvas.addEventListener("mousemove",  e => { if(!drawing) return; const [x,y]=getPos(e,canvas); ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(x,y); ctx.stroke(); [lastX,lastY]=[x,y]; });
+  canvas.addEventListener("touchmove",  e => { e.preventDefault(); if(!drawing) return; const [x,y]=getPos(e,canvas); ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(x,y); ctx.stroke(); [lastX,lastY]=[x,y]; });
+  canvas.addEventListener("mouseup",   () => { drawing=false; firmaBase64=canvas.toDataURL("image/png"); });
+  canvas.addEventListener("touchend",  () => { drawing=false; firmaBase64=canvas.toDataURL("image/png"); });
+  window.clearCanvas = function() { ctx.clearRect(0,0,canvas.width,canvas.height); firmaBase64=null; };
+
+  // ── Foto ──────────────────────────────────────────────────
+  document.getElementById("foto-input").addEventListener("change", function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      fotoBase64 = e.target.result;
+      document.getElementById("foto-img").src    = fotoBase64;
+      document.getElementById("foto-preview").style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ── Selector de estado ────────────────────────────────────
+  window.setEstado = function(estado) {
+    currentEstado = estado;
+    document.getElementById("btn-entregado").className    = `btn ${estado==="Entregado"     ? "btn-success" : "btn-secondary"}`;
+    document.getElementById("btn-no-entregado").className = `btn ${estado==="No entregado"  ? "btn-danger"  : "btn-secondary"}`;
+    document.getElementById("panel-entregado").style.display    = estado==="Entregado"     ? "block" : "none";
+    document.getElementById("panel-no-entregado").style.display = estado==="No entregado"  ? "block" : "none";
+    document.getElementById("obs-general").style.display        = "block";
+    document.getElementById("btn-save").disabled = false;
+  };
+
+  // ── Guardar ───────────────────────────────────────────────
+  window.handleSave = async function(e) {
+    e.preventDefault();
+    if (!currentEstado) { showToast("Selecciona el estado de la entrega","warning"); return; }
+    if (!rutaId)        { showToast("ID de ruta no encontrado","error"); return; }
+
+    const btn = document.getElementById("btn-save");
+    btn.disabled = true; btn.textContent = "Guardando…";
+    document.getElementById("alert-box").innerHTML = "";
+
+    try {
+      await registrarEntrega(rutaId, {
+        estado:          currentEstado,
+        observaciones:   (document.getElementById("observaciones")?.value||"") + " " + (document.getElementById("obs-extra")?.value||""),
+        firmaBase64:     currentEstado==="Entregado" ? firmaBase64 : null,
+        fotoBase64:      currentEstado==="Entregado" ? fotoBase64  : null,
+        cajasDevueltas:  Number(document.getElementById("cajasDevueltas")?.value||0),
+      });
+      showToast("¡Entrega registrada correctamente! 🎉","success");
+      setTimeout(() => window.location.href = "dashboard-conductor.html", 1200);
+    } catch(err) {
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      btn.disabled = false; btn.textContent = "💾 Guardar Entrega";
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Registrar Pedido</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+</head>
+<body>
+<!-- Sidebar Bodeguero -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo"><img src="assets/logo_optiruta.png" alt="" onerror="this.style.display='none'" style="width:32px;height:32px;"/><span>OPTIRUTA</span></div>
+  <nav class="sidebar-nav">
+    <a class="nav-item" href="dashboard-bodeguero.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a class="nav-item" href="inventario.html"><span class="nav-icon">📋</span> Inventario</a>
+    <a class="nav-item active" href="registrar-pedido.html"><span class="nav-icon">➕</span> Registrar Pedido</a>
+    <a class="nav-item" href="clasificar-pedidos.html"><span class="nav-icon">🗂️</span> Clasificar Zonas</a>
+    <a class="nav-item" href="asignar-conductor.html"><span class="nav-icon">🚛</span> Asignar Conductor</a>
+    <a class="nav-item" href="confirmar-carga.html"><span class="nav-icon">✅</span> Confirmar Carga</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar" id="sidebar-user-avatar">B</div>
+      <div class="user-info"><div class="user-name" id="sidebar-user-name">Bodeguero</div><div class="user-role" id="sidebar-user-role">Bodeguero</div></div>
+      <button onclick="doLogout()" style="color:var(--slate-400);font-size:1.1rem;padding:4px;">🚪</button>
+    </div>
+  </div>
+</div>
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="menu-btn btn-ghost" id="menu-btn">☰</button>
+    <span class="page-breadcrumb">Bodega · <strong>Registrar Pedido</strong></span>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">➕ Registrar Pedido</h1>
+      <p style="margin:0;">Ingresa los datos del nuevo pedido</p>
+    </div>
+    <a href="dashboard-bodeguero.html" class="btn btn-secondary">← Volver</a>
+  </div>
+
+  <div class="card" style="max-width:700px;">
+    <div class="card-body">
+      <div id="alert-box"></div>
+      <form id="form-pedido" onsubmit="handleSubmit(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="cliente">Cliente *</label>
+            <input id="cliente" class="form-control" type="text" placeholder="Nombre del cliente" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="telefono">Teléfono</label>
+            <input id="telefono" class="form-control" type="tel" placeholder="+593 09..."/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="direccion">Dirección *</label>
+          <input id="direccion" class="form-control" type="text" placeholder="Av. Principal y Calle Secundaria, Ciudad" required/>
+          <div id="geo-status" style="font-size:.78rem;color:var(--slate-400);margin-top:4px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="detalle">Detalle del Pedido</label>
+          <textarea id="detalle" class="form-control" placeholder="Descripción de los productos o instrucciones especiales…"></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="numeroCajas">Número de Cajas *</label>
+            <input id="numeroCajas" class="form-control" type="number" min="1" value="1" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="prioridad">Prioridad *</label>
+            <select id="prioridad" class="form-control" required>
+              <option value="">Selecciona</option>
+              <option value="Alta">🔴 Alta</option>
+              <option value="Media" selected>🟡 Media</option>
+              <option value="Baja">🟢 Baja</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;">
+          <a href="dashboard-bodeguero.html" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary" id="btn-submit">📦 Registrar Pedido</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { requireAuth, populateSidebarUser, logout } from "./js/auth.js";
+  import { initSidebar, showToast, geocodeAddress } from "./js/utils.js";
+  import { registrarPedido, clasificarZona } from "./js/pedidos.js";
+
+  if (!requireAuth("Bodeguero")) throw new Error("No autorizado");
+  populateSidebarUser();
+  initSidebar();
+  window.doLogout = logout;
+
+  // Geocodificación mientras el usuario escribe la dirección
+  let geoTimeout;
+  document.getElementById("direccion").addEventListener("input", function() {
+    clearTimeout(geoTimeout);
+    const val = this.value.trim();
+    if (val.length < 10) return;
+    geoTimeout = setTimeout(async () => {
+      const s = document.getElementById("geo-status");
+      s.textContent = "🔍 Verificando dirección…";
+      try {
+        const r = await geocodeAddress(val);
+        if (r) s.textContent = `📍 Encontrado: ${r.label.substring(0,60)}…`;
+        else   s.textContent = "⚠️ No se pudo geocodificar la dirección";
+      } catch(e) { s.textContent = ""; }
+    }, 1200);
+  });
+
+  window.handleSubmit = async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit");
+    btn.disabled = true; btn.textContent = "Guardando…";
+    document.getElementById("alert-box").innerHTML = "";
+    try {
+      const id = await registrarPedido({
+        cliente:     document.getElementById("cliente").value.trim(),
+        direccion:   document.getElementById("direccion").value.trim(),
+        telefono:    document.getElementById("telefono").value.trim(),
+        detalle:     document.getElementById("detalle").value.trim(),
+        numeroCajas: document.getElementById("numeroCajas").value,
+        prioridad:   document.getElementById("prioridad").value,
+      });
+      showToast(`Pedido ${id} registrado exitosamente 🎉`, "success");
+      setTimeout(() => window.location.href = "dashboard-bodeguero.html", 1200);
+    } catch(err) {
+      document.getElementById("alert-box").innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+      btn.disabled = false; btn.textContent = "📦 Registrar Pedido";
+    }
+  };
+</script>
+</body>
+</html>

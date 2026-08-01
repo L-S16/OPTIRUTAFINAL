@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OPTIRUTA — Bienvenido</title>
+  <meta name="description" content="Sistema inteligente de gestión y optimización de rutas de entrega. Selecciona tu perfil para acceder."/>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .welcome-footer { text-align:center; margin-top:28px; color:rgba(255,255,255,.3); font-size:.8rem; }
+    .next-btn-wrap { margin-top:8px; }
+    .particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+    .particle {
+      position:absolute; border-radius:50%;
+      background:rgba(129,140,248,.15);
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      0%   { transform: translateY(100vh) scale(0); opacity:0; }
+      10%  { opacity:1; }
+      90%  { opacity:.5; }
+      100% { transform: translateY(-20vh) scale(1); opacity:0; }
+    }
+  </style>
+</head>
+<body>
+<div class="auth-bg" style="flex-direction:column;">
+  <!-- Partículas decorativas -->
+  <div class="particles" id="particles"></div>
+
+  <div class="auth-card" style="max-width:580px;">
+    <div class="auth-logo">
+      <img src="assets/logo_optiruta.png" alt="OPTIRUTA Logo" onerror="this.style.display='none'"/>
+      <h1>OPTIRUTA</h1>
+      <p>Sistema de Gestión y Optimización de Rutas</p>
+    </div>
+
+    <h2 class="auth-title" style="text-align:center;">¡Bienvenido!</h2>
+    <p class="auth-sub" style="text-align:center; margin-bottom:0;">Selecciona tu perfil para continuar</p>
+
+    <!-- Role Cards -->
+    <div class="role-grid" id="role-grid">
+      <div class="role-card selected" data-role="admin" onclick="selectRole('admin')">
+        <div class="role-icon">👑</div>
+        <div class="role-title">SUPER ADMINISTRADOR</div>
+        <div class="role-desc">Gestión global, reportes y configuración</div>
+      </div>
+      <div class="role-card" data-role="bodeguero" onclick="selectRole('bodeguero')">
+        <div class="role-icon">📦</div>
+        <div class="role-title">BODEGUERO</div>
+        <div class="role-desc">Control de inventario y preparación</div>
+      </div>
+      <div class="role-card" data-role="conductor" onclick="selectRole('conductor')">
+        <div class="role-icon">🚛</div>
+        <div class="role-title">CONDUCTOR</div>
+        <div class="role-desc">Rutas, entregas y confirmación</div>
+      </div>
+    </div>
+
+    <div class="next-btn-wrap">
+      <button class="auth-btn" id="btn-next" onclick="goToLogin()">
+        Siguiente →
+      </button>
+    </div>
+
+    <p class="welcome-footer">
+      v1.0.0 — Reingeniería Web · Powered by Firebase + Leaflet.js
+    </p>
+  </div>
+</div>
+
+<script>
+  // Redirigir si ya hay sesión
+  const rol = localStorage.getItem("or_rol");
+  if (rol) {
+    const paths = {
+      "Administrador": "dashboard-admin.html",
+      "Bodeguero":     "dashboard-bodeguero.html",
+      "Conductor":     "dashboard-conductor.html",
+    };
+    if (paths[rol]) window.location.href = paths[rol];
+  }
+
+  let selectedRole = "admin";
+
+  function selectRole(role) {
+    selectedRole = role;
+    document.querySelectorAll(".role-card").forEach(c => c.classList.remove("selected"));
+    document.querySelector(`[data-role="${role}"]`)?.classList.add("selected");
+  }
+
+  function goToLogin() {
+    const pages = {
+      admin:     "login-admin.html",
+      bodeguero: "login-bodeguero.html",
+      conductor: "login-conductor.html",
+    };
+    window.location.href = pages[selectedRole] || "login-admin.html";
+  }
+
+  // Partículas animadas
+  const container = document.getElementById("particles");
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    const size = Math.random() * 60 + 20;
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${Math.random()*100}%;
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:${Math.random()*8}s;
+    `;
+    container.appendChild(p);
+  }
+</script>
+</body>
+</html>
